@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>香港賽馬分析</title>
+<meta name="theme-color" content="#14402F">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="賽馬分析">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --turf: #14402F;
+    --turf-2: #1D5640;
+    --rail: #F7F7F2;
+    --card: #FFFFFF;
+    --ink: #1B201D;
+    --muted: #6B746F;
+    --line: #E3E6E1;
+    --tote: #E3A62B;
+    --hot: #C4382D;
+    --good: #23774F;
+    --bad: #A3523A;
+    --bar: #CFE3D8;
+    --own: #6A4C9C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --rail: #0D1411;
+      --card: #151D19;
+      --ink: #E9EEEA;
+      --muted: #93A099;
+      --line: #25302B;
+      --bar: #23473A;
+      --own: #B8A2E0;
+      --good: #4FBF89;
+      --bad: #E08A6E;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--rail); color: var(--ink); }
+  body { font: 15px/1.5 "Noto Sans TC", system-ui, sans-serif; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .num { font-family: "Barlow Condensed", "Noto Sans TC", sans-serif; font-variant-numeric: tabular-nums; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--tote); outline-offset: 2px; }
+
+  /* 頂部：賽事日 + 場次板 */
+  header { background: var(--turf); color: #fff; padding: 14px 16px 0; position: sticky; top: 0; z-index: 5; }
+  .meet-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .meet { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); white-space: nowrap; font-size: 14px; }
+  .meet[aria-pressed="true"] { background: #fff; color: var(--turf); border-color: #fff; font-weight: 700; }
+  .board { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 14px; scrollbar-width: none; }
+  .rno { flex: 0 0 auto; width: 46px; height: 52px; border-radius: 6px; background: var(--turf-2); display: grid; place-items: center; line-height: 1; }
+  .rno b { font-size: 26px; font-weight: 700; color: var(--tote); }
+  .rno small { font-size: 11px; opacity: .75; margin-top: -10px; }
+  .rno[aria-current="true"] { background: var(--tote); }
+  .rno[aria-current="true"] b, .rno[aria-current="true"] small { color: var(--turf); opacity: 1; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  .race-head h1 { font-size: 22px; margin: 0 0 4px; font-weight: 700; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 14px; }
+  .facts span b { color: var(--ink); font-weight: 500; }
+  .note { font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+
+  /* 馬匹列 */
+  .runners { list-style: none; margin: 12px 0 0; padding: 0; background: var(--card); border-radius: 10px; border: 1px solid var(--line); }
+  .runner { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; padding: 12px; border-top: 1px solid var(--line); align-items: start; }
+  .runner:first-child { border-top: 0; }
+  .runner.scr { opacity: .4; }
+  .cloth { width: 34px; height: 38px; border-radius: 4px; background: var(--ink); color: var(--rail); display: grid; place-items: center; font-size: 22px; font-weight: 700; }
+  .nm { font-weight: 700; font-size: 16px; }
+  .nm small { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+  .who { font-size: 13px; color: var(--muted); }
+  .who em { font-style: normal; color: var(--ink); }
+  .stats { display: flex; gap: 12px; margin-top: 6px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .stats .num { font-size: 16px; color: var(--ink); font-weight: 600; }
+  .gate { display: inline-flex; align-items: center; gap: 6px; }
+  .gate i { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
+  .gate i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); background: var(--good); }
+  .form { display: flex; gap: 4px; margin-top: 6px; }
+  .form span { min-width: 22px; padding: 0 4px; height: 22px; border-radius: 4px; border: 1px solid var(--line); display: grid; place-items: center; font-size: 14px; }
+  .form span.w { background: var(--tote); border-color: var(--tote); color: #1B201D; font-weight: 700; }
+  .form span.p { border-color: var(--good); color: var(--good); }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
+  .tag.good { color: var(--good); }
+  .tag.bad { color: var(--bad); }
+  .tag.info { color: var(--muted); }
+  .jday { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
+  .jday span { padding: 2px 8px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); }
+  .jday span.dry { border-color: var(--bad); color: var(--bad); }
+  .jday span.hot { border-color: var(--good); color: var(--good); }
+  .jday b { font-weight: 600; }
+  .odds { text-align: right; min-width: 56px; }
+  .odds .num { font-size: 26px; font-weight: 700; line-height: 1; display: block; }
+  .odds small { font-size: 11px; color: var(--muted); }
+  .odds.fav .num { color: var(--hot); }
+  .odds .res { display: inline-block; margin-top: 4px; font-size: 12px; padding: 0 6px; border-radius: 4px; background: var(--tote); color: #1B201D; font-weight: 700; }
+
+  /* 模型 / 值博 */
+  .picks { margin-top: 12px; border-radius: 10px; padding: 12px 14px; background: var(--turf); color: #fff; }
+  .picks h2 { margin: 0 0 6px; font-size: 15px; color: var(--tote); }
+  .picks ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .picks li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .picks li b.num { font-size: 22px; color: var(--tote); min-width: 28px; }
+  .picks li span { font-size: 13px; opacity: .85; }
+  .picks p { margin: 0; font-size: 14px; opacity: .9; }
+  .picks small { display: block; margin-top: 8px; font-size: 12px; opacity: .7; }
+  .tag.value { color: #1B201D; background: var(--tote); border-color: var(--tote); font-weight: 700; }
+  .odds .model { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .odds .model .num, .odds.fav .model .num { display: inline; font-size: 15px; font-weight: 600; color: var(--ink); }
+  .runner.pick { box-shadow: inset 4px 0 0 var(--tote); }
+  /* 落飛 */
+  .flowbox { margin-top: 12px; border-radius: 10px; padding: 12px 14px; background: var(--card); border: 2px solid var(--hot); }
+  .flowbox.quiet { border: 1px dashed var(--line); }
+  .flowbox h2 { margin: 0 0 4px; font-size: 15px; color: var(--hot); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .flowbox.quiet h2 { color: var(--muted); }
+  .flowbox h2 small { font-weight: 500; color: var(--muted); font-size: 12px; }
+  .flowbox .meta { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+  .flowbox ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .flowbox li { display: grid; grid-template-columns: 34px 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--rail); }
+  .flowbox li b.num { grid-row: span 2; font-size: 24px; text-align: center; }
+  .flowbox li strong { font-size: 15px; }
+  .flowbox li .chg { font-size: 13px; color: var(--muted); grid-column: 2 / 4; }
+  .flowbox li .chg .num { color: var(--ink); font-size: 15px; font-weight: 600; }
+  .flowbox li .lv { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; justify-self: end; }
+  .lv3 .lv { background: var(--hot); color: #fff; }
+  .lv2 .lv { border: 1px solid var(--hot); color: var(--hot); }
+  .lv1 .lv { border: 1px solid var(--muted); color: var(--muted); }
+  .flowbox p { margin: 0; font-size: 14px; }
+  .flowbox .fine { display: block; margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .tag.flow3 { background: var(--hot); border-color: var(--hot); color: #fff; font-weight: 700; }
+  .tag.flow2 { color: var(--hot); font-weight: 700; }
+  .tag.flow1 { color: var(--hot); }
+  .runner.flow3 { box-shadow: inset 4px 0 0 var(--hot); }
+  .runner.flow2 { box-shadow: inset 4px 0 0 rgba(196, 56, 45, .55); }
+  .tag.own { color: var(--own); }
+  .tag.own2 { color: #fff; background: var(--own); border-color: var(--own); font-weight: 700; }
+  .cond { margin-top: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .cond b { color: var(--ink); font-weight: 600; }
+  /* 今日總覽 */
+  .og { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; }
+  .og h3 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .og h3 small { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .og ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .og li { display: grid; grid-template-columns: 74px 1fr; gap: 8px; font-size: 14px; align-items: baseline; }
+  .og li button { text-align: left; color: var(--turf); font-weight: 600; padding: 0; }
+  @media (prefers-color-scheme: dark) { .og li button { color: var(--tote); } }
+  .og li span { color: var(--muted); font-size: 13px; }
+  .og li em { font-style: normal; color: var(--ink); }
+  .og .same { font-size: 11px; color: #fff; background: var(--own); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+  .og .tags { margin-top: 2px; }
+  /* 刷新 + 心水 */
+  .race-head h1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .refresh { margin-left: auto; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: var(--turf); color: #fff; }
+  .refresh[disabled] { opacity: .6; }
+  .tips { margin-top: 12px; border-radius: 10px; padding: 12px 14px; background: var(--card); border: 2px solid var(--tote); }
+  .tips h2 { margin: 0 0 4px; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .tips h2 small { font-weight: 500; color: var(--muted); font-size: 12px; }
+  .tips .row { display: grid; grid-template-columns: 56px 1fr; gap: 6px 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
+  .tips .row:first-of-type { border-top: 0; }
+  .tips .row > b { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .tips .big { font-size: 22px; font-weight: 700; margin-right: 6px; }
+  .tips .sub { color: var(--muted); font-size: 13px; }
+  .tips .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tips .chip { padding: 2px 8px; border-radius: 6px; background: var(--rail); border: 1px solid var(--line); font-size: 13px; }
+  .tips .chip.v { border-color: var(--tote); background: var(--tote); color: #1B201D; font-weight: 700; }
+  .tips .fine { display: block; margin-top: 8px; font-size: 12px; color: var(--muted); }
+  /* 三T */
+  .rno { position: relative; }
+  .rno .ttb { position: absolute; top: 2px; right: 2px; font-style: normal; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 4px; background: var(--hot); color: #fff; }
+  .ttbadge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--hot); color: #fff; }
+  .odds .was { display: block; font-size: 11px; color: var(--hot); margin-top: 2px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .kpi b { display: block; font-size: 24px; line-height: 1.1; }
+  .kpi span { font-size: 12px; color: var(--muted); }
+
+  /* 統計頁 */
+  h2 { font-size: 18px; margin: 24px 0 8px; }
+  h2:first-child { margin-top: 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; margin-bottom: 8px; background: var(--card); }
+  .seg button { padding: 4px 12px; border-radius: 999px; font-size: 13px; }
+  .seg button[aria-pressed="true"] { background: var(--turf); color: #fff; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: right; border-top: 1px solid var(--line); }
+  th { font-weight: 500; color: var(--muted); font-size: 12px; border-top: 0; }
+  th:first-child, td:first-child { text-align: left; }
+  td .num { font-size: 16px; }
+  .draws { display: grid; gap: 12px; }
+  .dg { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .dg h3 { margin: 0 0 8px; font-size: 15px; }
+  .dg h3 small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 88px; }
+  .bars div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+  .bars div i { width: 100%; background: var(--bar); border-radius: 3px 3px 0 0; }
+  .bars div i.top { background: var(--good); }
+  .bars div span { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* 底部分頁 */
+  nav { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 6; }
+  nav button { flex: 1; padding: 12px 0; font-size: 15px; color: var(--muted); }
+  nav button[aria-current="page"] { color: var(--turf); font-weight: 700; box-shadow: inset 0 3px 0 var(--tote); }
+  @media (prefers-color-scheme: dark) { nav button[aria-current="page"] { color: var(--tote); } }
+
+  .empty { padding: 32px 16px; text-align: center; color: var(--muted); }
+  .loading { padding: 32px; text-align: center; color: var(--muted); }
+  @media (prefers-reduced-motion: no-preference) { .runners { animation: rise .25s ease-out; } @keyframes rise { from { opacity: 0; transform: translateY(6px); } } }
+</style>
+</head>
+<body>
+<header id="top">
+  <div class="meet-row" id="meets" role="group" aria-label="賽事日"></div>
+  <div class="board" id="board" role="group" aria-label="場次"></div>
+</header>
+<main id="view"><div class="loading">讀取賽事中…</div></main>
+<nav>
+  <button id="tabRace" aria-current="page" onclick="showRaces()">賽事</button>
+  <button id="tabDay" onclick="showDay()">今日</button>
+  <button id="tabStats" onclick="showStats()">統計</button>
+</nav>
+
+<script>
+  const VENUE = { ST: '沙田', HV: '跑馬地' };
+  const S = { meetings: [], meeting: null, raceId: null, stats: null, statPeriod: '近30日' };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const API = 'https://script.google.com/macros/s/AKfycbwWEcp0Gtz99q1Ih95xZ7cpga2Jt5QMcJvM-4kG5twO81IPsZEgewGXj__Saup1J2ZD/exec';
+  // 經 Apps Script 攞數據；網絡失敗就用上次儲低嘅資料（離線都睇到）
+  async function call(fn, ...args) {
+    const key = 'hkr:' + fn + ':' + JSON.stringify(args);
+    try {
+      const r = await fetch(API + '?fn=' + fn + '&args=' + encodeURIComponent(JSON.stringify(args)) + '&t=' + Date.now(), { cache: 'no-store' });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.err || '伺服器錯誤');
+      try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), data: j.data })); } catch (e) {}
+      S.offline = false;
+      return j.data;
+    } catch (e) {
+      let c = null;
+      try { c = JSON.parse(localStorage.getItem(key) || 'null'); } catch (x) {}
+      if (c) { S.offline = c.at; showOffline(c.at); return c.data; }
+      throw e;
+    }
+  }
+  function showOffline(at) {
+    let b = document.getElementById('offbar');
+    if (!b) { b = document.createElement('div'); b.id = 'offbar'; b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99;background:#A3523A;color:#fff;font-size:13px;text-align:center;padding:calc(env(safe-area-inset-top) + 4px) 8px 4px'; document.body.appendChild(b); }
+    const t = new Date(at); b.textContent = '離線中：顯示 ' + (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ' 嘅資料';
+    clearTimeout(showOffline.t); showOffline.t = setTimeout(() => b.remove(), 6000);
+  }
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  const dayName = d => { const t = new Date(d + 'T00:00:00+08:00'); return '日一二三四五六'.charAt(t.getDay()); };
+  const md = d => { const p = String(d).split('-'); return Number(p[1]) + '月' + Number(p[2]) + '日'; };
+
+  function fail(e) { $('view').innerHTML = '<div class="empty">讀取失敗：' + esc(e && e.message || e) + '<br>請重新整理頁面再試。</div>'; }
+
+  async function init() {
+    try {
+      S.meetings = await call('apiMeetings');
+      if (!S.meetings.length) { $('view').innerHTML = '<div class="empty">未有排位表。系統每日早上 9 點自動更新。</div>'; return; }
+      pickMeeting(S.meetings[0].id);
+    } catch (e) { fail(e); }
+  }
+
+  function pickMeeting(id) {
+    S.meeting = S.meetings.find(m => m.id === id);
+    renderMeets();
+    renderBoard();
+    pickRace(S.meeting.races[0].id);
+  }
+
+  function renderMeets() {
+    $('meets').innerHTML = S.meetings.map(m =>
+      `<button class="meet" aria-pressed="${m.id === S.meeting.id}" onclick="pickMeeting('${m.id}')">${md(m.date)}（${dayName(m.date)}）${VENUE[m.venue] || m.venue}</button>`).join('');
+  }
+
+  function renderBoard() {
+    $('board').style.display = '';
+    $('board').innerHTML = S.meeting.races.map(r =>
+      `<button class="rno num" aria-current="${r.id === S.raceId}" aria-label="第${r.no}場 ${r.time}${r.tt ? ' 三T' : ''}" onclick="pickRace('${r.id}')"><b>${r.no}</b><small>${esc(r.time)}</small>${r.tt ? '<i class="ttb">3T</i>' : ''}</button>`).join('');
+  }
+
+  async function pickRace(id) {
+    S.raceId = id;
+    renderBoard();
+    $('view').innerHTML = '<div class="loading">讀取排位中…</div>';
+    try { renderRace(await call('apiRace', id)); } catch (e) { fail(e); }
+  }
+
+  function renderRace(d) {
+    const r = d.race;
+    const going = r.going ? `<span>場地 <b>${esc(r.going)}</b></span>` : '';
+    const head = `<section class="race-head">
+      <h1>第 <span class="num">${r.race_no}</span> 場　${esc(r.race_name)}<button class="refresh" id="btnRefresh" onclick="refreshRace()">↻ 刷新</button></h1>
+      <div class="facts">
+        <span><b>${esc(r.class)}</b></span>
+        <span><b class="num">${esc(r.distance_m)}</b> 米</span>
+        <span>${esc(r.track)} <b>${esc(r.course)}</b> 賽道</span>${going}
+        <span>開跑 <b class="num">${esc(String(r.post_time).slice(11, 16))}</b></span>
+        ${Number(r.tt_leg) ? `<span class="ttbadge">三T 第${['一', '二', '三'][Number(r.tt_leg) - 1]}關</span>` : ''}
+      </div>
+      <p class="note">${d.avgDrawWin ? '綠條＝呢個路程及賽道嘅檔位歷史勝率，平均 ' + d.avgDrawWin + '%。' : '檔位統計要等歷史賽果回補完成先有。'}紅色賠率係熱門。</p>
+      ${tipsHtml(d)}
+      ${flowHtml(d)}
+      ${picksHtml(d)}
+      ${jdayHtml(d)}
+    </section>`;
+    const maxW = Math.max(20, ...d.runners.map(h => h.drawWin || 0));
+    const rows = d.runners.map(h => {
+      const formHtml = h.form.map(f => {
+        const p = parseInt(f.pos, 10);
+        return `<span class="num ${p === 1 ? 'w' : p <= 3 ? 'p' : ''}" title="${esc(f.date)} ${esc(VENUE[f.venue] || f.venue)} ${esc(f.dist)}米 賠率${esc(f.odds)}">${esc(isNaN(p) ? f.pos : p)}</span>`;
+      }).join('');
+      const isPick = h.model && h.model.value;
+      const tags = (isPick ? `<span class="tag value">值博 +${Math.round(h.model.edge * 100)}%</span>` : '') +
+        h.tags.map(t => `<span class="tag ${t.k}">${t.t}</span>`).join('');
+      const gate = h.drawWin == null ? `<span class="gate">檔 <span class="num">${esc(h.draw)}</span></span>`
+        : `<span class="gate" title="${h.drawN} 次出賽">檔 <span class="num">${esc(h.draw)}</span><i style="--w:${Math.round(h.drawWin / maxW * 100)}%"></i><span class="num">${h.drawWin}%</span></span>`;
+      const res = h.pos ? `<span class="res num">第${esc(h.pos)}名</span>` : '';
+      const fl = h.flow && !h.scratched ? h.flow : null;
+      const was = fl && Math.abs(fl.dropBase) >= 0.1 ? `<span class="was">由 ${esc(fl.oddsBase)} ${fl.dropBase > 0 ? '↓' : '↑'}</span>` : '';
+      return `<li class="runner${h.scratched ? ' scr' : ''}${isPick ? ' pick' : ''}${fl && fl.level >= 2 ? ' flow' + fl.level : ''}">
+        <div class="cloth num">${esc(h.no)}</div>
+        <div>
+          <div class="nm">${esc(h.name)}<small>${esc(h.code)}</small></div>
+          <div class="who"><em>${esc(h.jockey)}</em>${h.jWin != null ? ' ' + h.jWin + '%' : ''}　練 <em>${esc(h.trainer)}</em>${h.tWin != null ? ' ' + h.tWin + '%' : ''}</div>
+          ${h.owner ? `<div class="who">馬主 <em>${esc(h.owner)}</em></div>` : ''}
+          <div class="stats">${gate}<span>負磅 <span class="num">${esc(h.wt)}</span></span><span>評分 <span class="num">${esc(h.rating)}</span></span>${h.model && h.model.figs ? `<span title="最近三仗速度指數：0 = 同路程標準時間，正數 = 快過標準（已扣當日場地快慢）">速度 <span class="num">${h.model.figs.split(',').map(n => (Number(n) > 0 ? '+' : '') + n).join(' / ')}</span></span>` : ''}</div>
+          ${h.cond ? `<div class="cond">狀態：${esc(h.cond.line)}${h.cond.fastLast ? `<br>最近快操 ${esc(h.cond.fastLast)}` : ''}</div>` : ''}
+          ${h.incident && h.incident.text && h.incident.text !== '無特別報告。' ? `<div class="cond">上仗事件（${esc(h.incident.date.slice(5))}，第${esc(h.incident.place)}名）：${esc(h.incident.text.length > 90 ? h.incident.text.slice(0, 90) + '…' : h.incident.text)}</div>` : ''}
+          ${formHtml ? `<div class="form" aria-label="近績">${formHtml}</div>` : (h.last6 ? `<div class="who">近六仗 ${esc(h.last6)}</div>` : '')}
+          ${tags ? `<div class="tags">${tags}</div>` : ''}
+        </div>
+        <div class="odds${h.no === d.fav ? ' fav' : ''}"><span class="num">${h.scratched ? '退出' : esc(h.odds || '-')}</span><small>獨贏</small>${was}${h.model && !h.scratched ? `<span class="model">模型 <span class="num">${h.model.pf}</span>%</span>` : ''}${res}</div>
+      </li>`;
+    }).join('');
+    $('view').innerHTML = head + `<ol class="runners">${rows}</ol>`;
+    scheduleRefresh(d);
+  }
+
+  // 開跑前 150 分鐘至開跑後 3 分鐘：每分鐘自動更新（唔閃「讀取中」）
+  function scheduleRefresh(d) {
+    clearTimeout(S.timer);
+    const finished = d.runners.some(h => Number(h.pos) > 0);
+    const left = d.postMs ? (d.postMs - Date.now()) / 60000 : null;
+    if (finished || left == null || left < -3 || left > 150) return;
+    const id = d.race.race_id;
+    S.timer = setTimeout(async () => {
+      if (S.raceId !== id || $('tabRace').getAttribute('aria-current') !== 'page') return;
+      if (document.hidden) { scheduleRefresh(d); return; }
+      try { const y = window.scrollY; renderRace(await call('apiRace', id)); window.scrollTo(0, y); }
+      catch (e) { scheduleRefresh(d); }
+    }, 60000);
+  }
+
+  // 手動刷新：即刻攞最新賠率、落飛同心水
+  async function refreshRace() {
+    const b = $('btnRefresh');
+    if (b) { b.disabled = true; b.textContent = '更新中…'; }
+    clearTimeout(S.timer);
+    const id = S.raceId, y = window.scrollY;
+    try { const d = await call('apiRace', id); if (S.raceId === id) { renderRace(d); window.scrollTo(0, y); } }
+    catch (e) { if (b) { b.disabled = false; b.textContent = '↻ 再試'; } }
+  }
+
+  function tipsHtml(d) {
+    const t = d.tips;
+    if (!t) return '';
+    const left = d.postMs ? Math.round((d.postMs - Date.now()) / 60000) : null;
+    const when = left == null ? '' : left <= 0 ? '已開跑' : left <= 90 ? `開跑前 ${left} 分鐘` : left < 1440 ? `開跑前約 ${Math.round(left / 60)} 小時` : `開跑前約 ${Math.round(left / 1440)} 日`;
+    const fmt = x => `${x.a}-${x.b}（${x.p}%${x.odds ? ` · 賠率 ${x.odds}` : ''}${x.ev ? ` · 期望 ${x.ev}` : ''}）`;
+    const chips = arr => arr.map(x => `<span class="chip${x.ev && x.ev >= 1.05 ? ' v' : ''}">${fmt(x)}</span>`).join('');
+    const bk = t.banker;
+    return `<div class="tips"><h2>今場心水 <small>${esc(when)}${d.liveAt ? ' · 賠率更新 ' + esc(d.liveAt) : ''}</small></h2>
+      <div class="row"><b>膽</b><div><span class="big num">${bk.no}</span><strong>${esc(bk.name)}</strong>
+        <div class="sub">勝出約 ${bk.win}% · 入位約 ${bk.place}%${bk.odds ? ' · 獨贏 ' + esc(bk.odds) : ''}${bk.why ? ' · ' + esc(bk.why) : ''}</div></div></div>
+      <div class="row"><b>拖</b><div class="chips">${t.drag.map(x => `<span class="chip">${x.no} ${esc(x.name)}${x.why ? '（' + esc(x.why) + '）' : ''}</span>`).join('')}</div></div>
+      <div class="row"><b>Q</b><div class="chips">${chips(t.q)}</div></div>
+      <div class="row"><b>位置Q</b><div class="chips">${chips(t.pq)}</div></div>
+      ${t.value.length ? `<div class="row"><b>值博</b><div class="chips">${t.value.map(x => `<span class="chip v">${x.kind} ${fmt(x)}</span>`).join('')}</div></div>` : ''}
+      <small class="fine">計法：${esc(t.basis)}，再按落飛（加）、回飛同體重大減（減）微調；Q / 位置Q 機會由勝出機會推算${t.hasExotic ? '，同馬會 Q / 位置Q 賠率比較，「期望」高過 1 即係賠率比估計機會抵（黃色）' : '（Q / 位置Q 未開售，未有賠率比較）'}。開跑前每分鐘自動更新，想即刻睇最新可以撳「刷新」。只供參考，唔保證贏，請量力而為。</small></div>`;
+  }
+
+  function money(x) {
+    const a = Math.abs(x), sign = x < 0 ? '−' : '+';
+    return sign + (a >= 1e6 ? (a / 1e6).toFixed(1) + ' 百萬' : Math.round(a / 1e4) + ' 萬');
+  }
+
+  function flowHtml(d) {
+    const finished = d.runners.some(h => Number(h.pos) > 0);
+    const f = d.flow;
+    if (!f) {
+      if (finished) return '';
+      return `<div class="flowbox quiet"><h2>落飛監察</h2><p>賽馬日第一場開跑前約 2 個鐘開始，每分鐘記錄獨贏賠率同彩池。開售之後，有大額投注集中買嘅馬會喺呢度紅色顯示。</p></div>`;
+    }
+    const left = d.postMs ? Math.round((d.postMs - Date.now()) / 60000) : null;
+    const when = finished ? '最後一次記錄（開跑前）' : left == null ? '' : left > 0 ? `開跑前 <b class="num">${left}</b> 分鐘` : '已開跑';
+    const lvName = { 3: '大手落飛', 2: '落飛', 1: '有飛落' };
+    const list = d.runners.filter(h => h.flow && h.flow.level > 0 && !h.scratched)
+      .sort((a, b) => b.flow.level - a.flow.level || b.flow.exBase - a.flow.exBase);
+    const pct = x => Math.round(x * 100);
+    const body = list.length ? `<ol>${list.map(h => { const x = h.flow; return `<li class="lv${x.level}">
+        <b class="num">${esc(h.no)}</b><strong>${esc(h.name)}</strong><span class="lv">${lvName[x.level]}</span>
+        <span class="chg">賠率 <span class="num">${esc(x.oddsBase)} → ${esc(x.odds)}</span>（↓${pct(x.dropBase)}%）· 近 10 分鐘 ${x.drop10 >= 0 ? '↓' : '↑'}${Math.abs(pct(x.drop10))}% · 額外資金 <span class="num">${money(x.exBase)}</span></span>
+      </li>`; }).join('')}</ol>`
+      : '<p>暫時冇明顯落飛，賠率走勢平穩。</p>';
+    return `<div class="flowbox"><h2>落飛監察 <small>${when}</small></h2>
+      <p class="meta">更新 ${esc(f.at)} · 獨贏彩池約 $${(f.pool / 1e6).toFixed(1)} 百萬 · 同 ${esc(f.baseAt)} 嘅賠率比較 · 每分鐘自動更新</p>
+      ${body}
+      <small class="fine">額外資金＝估計投注額增幅，減去按原本比例應得嘅增幅（彩池 × 82.5% ÷ 賠率推算）。落飛只代表有人集中大手買，唔代表一定贏；開跑前最後 30 秒仍會有大量投注入飛。</small></div>`;
+  }
+
+  function picksHtml(d) {
+    if (!d.analysed) return '<div class="picks"><p>未有模型分析。賽馬日系統每 30 分鐘自動分析一次。</p></div>';
+    const picks = d.runners.filter(h => h.model && h.model.value && !h.scratched).sort((a, b) => b.model.edge - a.model.edge);
+    const at = (d.runners.find(h => h.model) || {}).model.at || '';
+    const body = picks.length ? `<ol>${picks.map(h => `<li><b class="num">${esc(h.no)}</b><strong>${esc(h.name)}</strong>
+        <span>模型 ${h.model.pf}% 對賠率 ${h.model.pp}%（${esc(h.odds)} 倍）${h.model.reasons ? '，' + esc(h.model.reasons) : ''}</span></li>`).join('')}</ol>`
+      : '<p>今場模型冇搵到值博嘅馬，賠率已大致反映實力。</p>';
+    return `<div class="picks"><h2>值博之選</h2>${body}<small>分析時間 ${esc(at)}。只供參考，唔保證贏，請量力而為。</small></div>`;
+  }
+
+  function jdayHtml(d) {
+    const js = (d.dayJockeys || []).filter(j => j.done > 0);
+    if (!js.length) return '';
+    return `<p class="note">今日騎師戰績（今場之前，贏 / 已騎）：</p><div class="jday">${js.map(j =>
+      `<span class="${j.wins >= 2 ? 'hot' : (j.wins === 0 && j.done >= 3 ? 'dry' : '')}">${esc(j.name)} <b class="num">${j.wins}/${j.done}</b></span>`).join('')}</div>`;
+  }
+
+  function setTab(id) { ['tabRace', 'tabDay', 'tabStats'].forEach(t => t === id ? $(t).setAttribute('aria-current', 'page') : $(t).removeAttribute('aria-current')); }
+
+  function showRaces() {
+    setTab('tabRace');
+    $('meets').style.display = '';
+    if (S.meeting) { renderMeets(); renderBoard(); pickRace(S.raceId); } else init();
+  }
+
+  async function showStats() {
+    setTab('tabStats'); clearTimeout(S.timer);
+    $('meets').style.display = 'none'; $('board').style.display = 'none';
+    $('view').innerHTML = '<div class="loading">讀取統計中…</div>';
+    try { S.stats = S.stats || await call('apiStats'); renderStats(); } catch (e) { fail(e); }
+  }
+
+  // 今日總覽：同馬主、相關馬主、馬匹狀態提示
+  async function showDay() {
+    setTab('tabDay'); clearTimeout(S.timer);
+    if (!S.meeting) { await init(); setTab('tabDay'); }
+    $('meets').style.display = ''; $('board').style.display = 'none';
+    $('meets').innerHTML = S.meetings.map(m =>
+      `<button class="meet" aria-pressed="${m.id === S.meeting.id}" onclick="pickDay('${m.id}')">${md(m.date)}（${dayName(m.date)}）${VENUE[m.venue] || m.venue}</button>`).join('');
+    $('view').innerHTML = '<div class="loading">讀取今日總覽中…</div>';
+    try { renderDay(await call('apiDay', S.meeting.id)); } catch (e) { fail(e); }
+  }
+  function pickDay(id) { S.meeting = S.meetings.find(m => m.id === id); S.raceId = S.meeting.races[0].id; showDay(); }
+  function goRace(no) {
+    const r = S.meeting.races.find(x => Number(x.no) === Number(no));
+    if (!r) return;
+    S.raceId = r.id; showRaces(); window.scrollTo(0, 0);
+  }
+  function horseBtn(x) { return `<button onclick="goRace(${x.race})">第${x.race}場 ${x.no}號</button>`; }
+
+  function renderDay(d) {
+    const same = d.groups.filter(g => g.kind === 'same'), rel = d.groups.filter(g => g.kind === 'related');
+    const grp = g => {
+      const cnt = {};
+      g.horses.forEach(x => { cnt[x.race] = (cnt[x.race] || 0) + 1; });
+      return `<div class="og"><h3>${esc(g.kind === 'same' ? g.owner : '共同人名：' + g.owner)}<small>${g.horses.length} 匹出賽${g.kind === 'related' ? ' · ' + g.owners.map(esc).join(' / ') : ''}</small></h3><ul>${
+        g.horses.map(x => `<li>${horseBtn(x)}<span><em>${esc(x.name)}</em>${cnt[x.race] > 1 ? '<b class="same">同場</b>' : ''} · 騎 ${esc(x.jockey)} · 練 ${esc(x.trainer)}${x.odds ? ' · 賠率 ' + esc(x.odds) : ''}${g.kind === 'related' ? ' · ' + esc(x.owner) : ''}</span></li>`).join('')}</ul></div>`;
+    };
+    const notes = d.notes.length ? d.notes.map(n => `<div class="og"><ul><li>${horseBtn(n)}<span><em>${esc(n.name)}</em> · 騎 ${esc(n.jockey)} · 練 ${esc(n.trainer)}<div class="tags">${n.tags.map(t => `<span class="tag ${t.k}">${esc(t.t)}</span>`).join('')}</div></span></li></ul></div>`).join('')
+      : `<p class="note">${d.condCount ? '今日冇特別要留意嘅馬匹狀態。' : '馬匹狀態未下載。賽馬日前一日起，系統每 3 個鐘自動更新。'}</p>`;
+    $('view').innerHTML = `
+      <h2>同馬主</h2>
+      <p class="note">同一個馬主今日有幾匹馬出賽。標「同場」即係同一場有兩匹或以上。只作參考，並不代表有任何安排。</p>
+      ${same.length ? same.map(grp).join('') : '<p class="note">今日冇馬主有兩匹或以上出賽（或者馬主資料未齊）。</p>'}
+      <h2>相關馬主</h2>
+      <p class="note">馬主名唔同，但有共同人名（例如「劉寶文」同「劉寶文與吳慧思」）。</p>
+      ${rel.length ? rel.map(grp).join('') : '<p class="note">今日冇發現相關馬主。</p>'}
+      <h2>馬匹狀態提示</h2>
+      <p class="note">近半年傷患、曾流鼻血、長休復出、體重大變（±15 磅）、配備改變、近期試閘、兩週冇快操、上仗有藉口而跑輸、上仗健康問題。資料來自馬會傷患紀錄、晨操紀錄同競賽事件報告。</p>
+      ${notes}`;
+  }
+
+  function modelHtml(m) {
+    if (!m || !m.fit) return '<h2>模型表現</h2><p class="note">模型未訓練。歷史賽果回補完成後會自動訓練。</p>';
+    const f = m.fit, l = m.live;
+    const gain = Math.round((f.r2c - f.r2p) * 10000) / 100;
+    return `<h2>模型表現</h2>
+      <p class="note">用 ${f.train} 場訓練，再用 ${f.test} 場（${esc(f.testFrom)} 至 ${esc(f.testTo)}）測試，訓練時間 ${esc(f.fittedAt)}。</p>
+      <div class="kpis">
+        <div class="kpi"><b class="num">${gain > 0 ? '+' : ''}${gain}</b><span>準確度比單睇賠率（R² 百分點）</span></div>
+        <div class="kpi"><b class="num">${f.bets}</b><span>測試期值博次數，中 ${f.wins} 次</span></div>
+        <div class="kpi"><b class="num">${f.roi > 0 ? '+' : ''}${f.roi}%</b><span>測試期回報率</span></div>
+      </div>
+      <p class="note">實戰紀錄：${l.bets ? `值博 ${l.bets} 次，中 ${l.wins} 次，回報率 ${l.roi}%` : '未有已完賽嘅值博紀錄'}。準確度增幅細於 0 代表模型未有幫助，應以賠率為主。</p>`;
+  }
+
+  function folkHtml(rows) {
+    if (!rows || !rows.length) return '<h2>民間說法驗證</h2><p class="note">未計算。每晚 11 點自動更新。</p>';
+    return `<h2>民間說法驗證</h2>
+      <p class="note">「實際 / 預期」＝實際頭馬數除以賠率預期頭馬數。約 1 代表賠率已反映晒，冇額外優勢；明顯高過 1 而且樣本多先值得留意。每注 $10 計回報率，扣佣後全部馬平均約 −18% 至 −20%。</p>
+      <table><thead><tr><th>說法</th><th>出賽</th><th>頭馬</th><th>預期</th><th>實際/預期</th><th>回報率</th></tr></thead><tbody>${
+        rows.map(r => `<tr><td>${esc(r.description)}</td><td class="num">${r.runners}</td><td class="num">${r.wins}</td><td class="num">${r.expected_wins}</td><td class="num">${r.ae_ratio === '' ? '-' : r.ae_ratio}</td><td class="num">${r.roi_pct === '' ? '-' : r.roi_pct + '%'}</td></tr>`).join('')
+      }</tbody></table>`;
+  }
+
+  function ownerHtml(o) {
+    if (!o || !o.total) return '<h2>董事馬</h2><p class="note">馬主資料下載緊，完成後會顯示。</p>';
+    const st = o.stewards.length ? `<table><thead><tr><th>董事馬</th><th>馬主</th><th>練馬師</th><th>出賽</th><th>頭馬</th></tr></thead><tbody>${
+      o.stewards.map(x => `<tr><td>${esc(x.name)}</td><td>${esc(x.owner)}</td><td>${esc(x.trainer)}</td><td class="num">${x.starts}</td><td class="num">${x.wins}</td></tr>`).join('')}</tbody></table>`
+      : '<p class="note">暫時未搵到馬主名包含現任董事名字嘅馬。</p>';
+    return `<h2>董事馬</h2><p class="note">按馬主名稱比對 2026/27 年度董事名單，只作統計參考，並不代表有任何不當。</p>${st}`;
+  }
+
+  function setPeriod(p) { S.statPeriod = p; renderStats(); }
+
+  function renderStats() {
+    const s = S.stats, recent = S.statPeriod === '近30日';
+    const tbl = (rows, label) => rows.length ? `<table><thead><tr><th>${label}</th><th>出賽</th><th>頭馬</th><th>勝率</th><th>上名率</th></tr></thead><tbody>${
+      rows.map(r => `<tr><td>${esc(r.name)}</td><td class="num">${r.starts}</td><td class="num">${r.wins}</td><td class="num">${r.win_pct}%</td><td class="num">${r.top3_pct}%</td></tr>`).join('')
+    }</tbody></table>` : '<div class="empty">資料未夠，等回補完成。</div>';
+    const draws = s.draws.map(g => {
+      const max = Math.max(...g.rows.map(x => x.win), 1);
+      const best = Math.max(...g.rows.map(x => x.win));
+      return `<div class="dg"><h3>${VENUE[g.venue] || g.venue} ${esc(g.course)} <span class="num">${g.dist}</span>米<small>${g.n} 次出賽</small></h3>
+        <div class="bars" role="img" aria-label="各檔位勝率">${g.rows.map(x =>
+          `<div title="${x.draw} 檔：勝率 ${x.win}%，${x.starts} 次"><i class="${x.win === best ? 'top' : ''}" style="height:${Math.max(2, x.win / max * 70)}px"></i><span class="num">${x.draw}</span></div>`).join('')}</div></div>`;
+    }).join('');
+    $('view').innerHTML = `
+      <div class="seg" role="group" aria-label="期間">
+        <button aria-pressed="${recent}" onclick="setPeriod('近30日')">近 30 日</button>
+        <button aria-pressed="${!recent}" onclick="setPeriod('全部')">全部紀錄</button>
+      </div>
+      ${modelHtml(s.model)}
+      <p class="note">基於 ${s.resultRows} 行賽果，按頭馬數排序。</p>
+      <h2>騎師</h2>${tbl(recent ? s.jockeys : s.jockeysAll, '騎師')}
+      <h2>練馬師</h2>${tbl(recent ? s.trainers : s.trainersAll, '練馬師')}
+      ${folkHtml(s.folk)}
+      ${ownerHtml(s.owners)}
+      <h2>檔位勝率</h2><p class="note">每組代表一個馬場、賽道及路程；最高勝率嘅檔位用深綠色。</p>
+      <div class="draws">${draws || '<div class="empty">資料未夠，等回補完成。</div>'}</div>`;
+  }
+
+  init();
+</script>
+</body>
+</html>
