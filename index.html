@@ -119,6 +119,22 @@
   /* 落飛 */
   .flowbox { margin-top: 12px; border-radius: 10px; padding: 12px 14px; background: var(--card); border: 2px solid var(--hot); }
   .flowbox.quiet { border: 1px dashed var(--line); }
+  .tblwrap { overflow-x: auto; margin: 6px -4px 0; -webkit-overflow-scrolling: touch; }
+  .ftbl { width: auto; min-width: 100%; border: 0; border-radius: 0; font-size: 13px; background: transparent; }
+  .ftbl th, .ftbl td { padding: 5px 7px; text-align: right; white-space: nowrap; border-top: 1px solid var(--line); }
+  .ftbl th { font-size: 11px; line-height: 1.25; font-weight: 500; color: var(--muted); border-top: 0; }
+  .ftbl th small { font-size: 10px; }
+  .ftbl .hn { text-align: left; position: sticky; left: 0; background: var(--card); z-index: 1; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+  .ftbl tr.lv3 .hn { box-shadow: inset 3px 0 0 var(--hot); }
+  .ftbl tr.lv2 .hn { box-shadow: inset 3px 0 0 rgba(196, 56, 45, .55); }
+  .ftbl td.dn { color: var(--hot); }
+  .ftbl td.dn2 { color: #fff; background: var(--hot); font-weight: 700; }
+  .ftbl td.up { color: var(--good); }
+  .ftbl td.last { font-weight: 700; }
+  .ftbl .lvb { font-size: 11px; font-weight: 700; color: var(--hot); }
+  .ftbl tr.lv3 .lvb { color: #fff; background: var(--hot); border-radius: 999px; padding: 1px 6px; }
+  .fth { font-size: 14px; margin: 12px 0 0; }
+  .fth small { font-weight: 400; color: var(--muted); font-size: 11px; }
   .flowbox h2 { margin: 0 0 4px; font-size: 15px; color: var(--hot); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .flowbox.quiet h2 { color: var(--muted); }
   .flowbox h2 small { font-weight: 500; color: var(--muted); font-size: 12px; }
@@ -398,23 +414,42 @@
     const f = d.flow;
     if (!f) {
       if (finished) return '';
-      return `<div class="flowbox quiet"><h2>落飛監察</h2><p>賽馬日第一場開跑前約 2 個鐘開始，每分鐘記錄獨贏賠率同彩池。開售之後，有大額投注集中買嘅馬會喺呢度紅色顯示。</p></div>`;
+      return `<div class="flowbox quiet"><h2>落飛監察</h2><p>賽馬日第一場開跑前約 2 個半鐘開始記錄獨贏賠率同彩池；開跑前 5 分鐘起每 30 秒記一次。有大額投注集中買嘅馬會喺呢度紅色顯示。</p></div>`;
     }
     const left = d.postMs ? Math.round((d.postMs - Date.now()) / 60000) : null;
-    const when = finished ? '最後一次記錄（開跑前）' : left == null ? '' : left > 0 ? `開跑前 <b class="num">${left}</b> 分鐘` : '已開跑';
+    const when = finished ? '賽後回顧' : left == null ? '' : left > 0 ? `開跑前 <b class="num">${left}</b> 分鐘` : '已開跑';
     const lvName = { 3: '大手落飛', 2: '落飛', 1: '有飛落' };
-    const list = d.runners.filter(h => h.flow && h.flow.level > 0 && !h.scratched)
+    const pct = x => x == null ? '' : (x >= 0 ? '↓' : '↑') + Math.abs(Math.round(x * 100)) + '%';
+    const cls = x => x == null ? '' : x >= 0.08 ? 'dn2' : x >= 0.03 ? 'dn' : x <= -0.08 ? 'up' : '';
+    const runners = d.runners.filter(h => h.flow && !h.scratched);
+    const flagged = runners.filter(h => h.flow.level > 0)
       .sort((a, b) => b.flow.level - a.flow.level || (b.flow.late ? 1 : 0) - (a.flow.late ? 1 : 0) || b.flow.exBase - a.flow.exBase);
-    const pct = x => Math.round(x * 100);
-    const body = list.length ? `<ol>${list.map(h => { const x = h.flow; return `<li class="lv${x.level}">
-        <b class="num">${esc(h.no)}</b><strong>${esc(h.name)}</strong><span class="lv">${x.late ? '最後落飛' : lvName[x.level]}</span>
-        <span class="chg">賠率 <span class="num">${esc(x.oddsBase)} → ${esc(x.odds)}</span>（↓${pct(x.dropBase)}%）· 近 10 分鐘 ${x.drop10 >= 0 ? '↓' : '↑'}${Math.abs(pct(x.drop10))}%${x.drop5 != null ? ` · 最後 5 分鐘 <b>${x.drop5 >= 0 ? '↓' : '↑'}${Math.abs(pct(x.drop5))}%</b>（<span class="num">${esc(x.odds5)} → ${esc(x.odds)}</span>）` : ''} · 額外資金 <span class="num">${money(x.exBase)}</span></span>
-      </li>`; }).join('')}</ol>`
+    const sum = flagged.length ? `<div class="tblwrap"><table class="ftbl">
+      <thead><tr><th>馬</th><th>級別</th><th>起始</th><th>最新</th><th>全程</th><th>近10分</th><th>最後5分</th><th>額外資金</th></tr></thead>
+      <tbody>${flagged.map(h => { const x = h.flow; return `<tr class="lv${x.level}">
+        <td class="hn"><b class="num">${esc(h.no)}</b> ${esc(h.name)}</td>
+        <td><span class="lvb">${x.late ? '最後落飛' : lvName[x.level]}</span></td>
+        <td class="num">${esc(x.oddsBase)}</td><td class="num"><b>${esc(x.odds)}</b></td>
+        <td class="num ${cls(x.dropBase)}">${pct(x.dropBase)}</td><td class="num ${cls(x.drop10)}">${pct(x.drop10)}</td>
+        <td class="num ${cls(x.drop5)}">${pct(x.drop5)}</td><td class="num">${money(x.exBase)}</td></tr>`; }).join('')}</tbody></table></div>`
       : '<p>暫時冇明顯落飛，賠率走勢平穩。</p>';
+    // 賠率走勢表：每匹馬喺唔同時間點嘅獨贏賠率
+    const T = d.flowTable;
+    let trend = '';
+    if (T && T.cols.length > 1) {
+      const lvOf = no => { const h = runners.find(r => String(r.no) === String(no)); return h ? h.flow.level : 0; };
+      const nameOf = no => { const h = d.runners.find(r => String(r.no) === String(no)); return h ? h.name : ''; };
+      const nos = Object.keys(T.rows).sort((a, b) => { const ra = T.rows[a], rb = T.rows[b]; return (ra[ra.length - 1] || 999) - (rb[rb.length - 1] || 999); });
+      trend = `<h3 class="fth">賠率走勢 <small>紅＝比上一格跌（落飛），綠＝回飛</small></h3><div class="tblwrap"><table class="ftbl trend">
+        <thead><tr><th class="hn">馬</th>${T.cols.map(c => `<th>${esc(c.label)}<br><small>${esc(c.at)}</small></th>`).join('')}</tr></thead>
+        <tbody>${nos.map(no => { const r = T.rows[no]; return `<tr class="lv${lvOf(no)}"><td class="hn"><b class="num">${esc(no)}</b> ${esc(nameOf(no))}</td>${r.map((o, i) => {
+          const p = i ? r[i - 1] : null; const ch = o && p ? 1 - o / p : null;
+          return `<td class="num ${cls(ch)}${i === r.length - 1 ? ' last' : ''}">${o == null ? '-' : esc(o)}</td>`; }).join('')}</tr>`; }).join('')}</tbody></table></div>`;
+    }
     return `<div class="flowbox"><h2>落飛監察 <small>${when}</small></h2>
-      <p class="meta">更新 ${esc(f.at)} · 獨贏彩池約 $${(f.pool / 1e6).toFixed(1)} 百萬 · 同 ${esc(f.baseAt)} 嘅賠率比較 · 每分鐘自動更新</p>
-      ${body}
-      <small class="fine">額外資金＝估計投注額增幅，減去按原本比例應得嘅增幅（彩池 × 82.5% ÷ 賠率推算）。落飛只代表有人集中大手買，唔代表一定贏；開跑前最後 30 秒仍會有大量投注入飛。</small></div>`;
+      <p class="meta">更新 ${esc(f.at)} · 獨贏彩池約 $${(f.pool / 1e6).toFixed(1)} 百萬 · 由 ${esc(f.baseAt)} 開始比較 · 開跑前 5 分鐘起每 30 秒記錄</p>
+      ${sum}${trend}
+      <small class="fine">額外資金＝估計投注額增幅，減去按原本比例應得嘅增幅（彩池 × 82.5% ÷ 賠率推算）。落飛只代表有人集中大手買，唔代表一定贏。</small></div>`;
   }
 
   function picksHtml(d) {
