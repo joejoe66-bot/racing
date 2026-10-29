@@ -357,7 +357,7 @@
       if (document.hidden) { scheduleRefresh(d); return; }
       try { const y = window.scrollY; renderRace(await call('apiRace', id)); window.scrollTo(0, y); }
       catch (e) { scheduleRefresh(d); }
-    }, 60000);
+    }, left <= 3 ? 15000 : 60000);   // 開跑前 3 分鐘：每 15 秒更新
   }
 
   // 手動刷新：即刻攞最新賠率、落飛同心水
@@ -404,11 +404,11 @@
     const when = finished ? '最後一次記錄（開跑前）' : left == null ? '' : left > 0 ? `開跑前 <b class="num">${left}</b> 分鐘` : '已開跑';
     const lvName = { 3: '大手落飛', 2: '落飛', 1: '有飛落' };
     const list = d.runners.filter(h => h.flow && h.flow.level > 0 && !h.scratched)
-      .sort((a, b) => b.flow.level - a.flow.level || b.flow.exBase - a.flow.exBase);
+      .sort((a, b) => b.flow.level - a.flow.level || (b.flow.late ? 1 : 0) - (a.flow.late ? 1 : 0) || b.flow.exBase - a.flow.exBase);
     const pct = x => Math.round(x * 100);
     const body = list.length ? `<ol>${list.map(h => { const x = h.flow; return `<li class="lv${x.level}">
-        <b class="num">${esc(h.no)}</b><strong>${esc(h.name)}</strong><span class="lv">${lvName[x.level]}</span>
-        <span class="chg">賠率 <span class="num">${esc(x.oddsBase)} → ${esc(x.odds)}</span>（↓${pct(x.dropBase)}%）· 近 10 分鐘 ${x.drop10 >= 0 ? '↓' : '↑'}${Math.abs(pct(x.drop10))}% · 額外資金 <span class="num">${money(x.exBase)}</span></span>
+        <b class="num">${esc(h.no)}</b><strong>${esc(h.name)}</strong><span class="lv">${x.late ? '最後落飛' : lvName[x.level]}</span>
+        <span class="chg">賠率 <span class="num">${esc(x.oddsBase)} → ${esc(x.odds)}</span>（↓${pct(x.dropBase)}%）· 近 10 分鐘 ${x.drop10 >= 0 ? '↓' : '↑'}${Math.abs(pct(x.drop10))}%${x.drop5 != null ? ` · 最後 5 分鐘 <b>${x.drop5 >= 0 ? '↓' : '↑'}${Math.abs(pct(x.drop5))}%</b>（<span class="num">${esc(x.odds5)} → ${esc(x.odds)}</span>）` : ''} · 額外資金 <span class="num">${money(x.exBase)}</span></span>
       </li>`; }).join('')}</ol>`
       : '<p>暫時冇明顯落飛，賠率走勢平穩。</p>';
     return `<div class="flowbox"><h2>落飛監察 <small>${when}</small></h2>
