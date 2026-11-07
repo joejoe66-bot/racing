@@ -122,7 +122,7 @@
   /* ---------- 場次內容排位 ---------- */
   .rcols { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
   .rmain, .rside { display: contents; }
-  .o-tips { order: 1; } .o-flow { order: 2; } .o-picks { order: 3; } .o-jday { order: 4; } .o-runners { order: 5; }
+  .o-tips { order: 1; } .o-flow { order: 2; } .o-picks { order: 3; } .o-bias { order: 4; } .o-jday { order: 5; } .o-runners { order: 6; }
   @media (min-width: 1180px) {
     .rcols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 20px; }
     .rmain { display: flex; flex-direction: column; gap: 14px; }
@@ -158,6 +158,16 @@
   .picks li span { font-size: 13px; color: rgba(255,255,255,.75); }
   .picks p { margin: 0; font-size: 14px; color: rgba(255,255,255,.85); }
   .picks .fine { color: rgba(255,255,255,.6); }
+
+  /* 跑道偏差 */
+  .bias .bi { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
+  .bias .bi:first-of-type { border-top: 0; }
+  .bias .bi .num { font-size: 18px; font-weight: 700; }
+  .bias .bi small { grid-column: 1 / 3; font-size: 12px; color: var(--muted); }
+  .bias .bi.strong .num, .bias .bi.strong span:first-child { color: var(--good); font-weight: 700; }
+  .bias .bi.weak .num { color: var(--bad); }
+  .bias .pace { font-size: 13px; margin: 0 0 6px; }
+  .bias .pace b { font-family: "Big Shoulders Display", "Barlow Condensed", sans-serif; font-size: 17px; }
 
   /* 騎師今日 */
   .jtbl { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -286,6 +296,8 @@
   table.data th { font-weight: 500; color: var(--muted); font-size: 12px; border-top: 0; }
   table.data th:first-child, table.data td:first-child { text-align: left; }
   table.data td .num, table.data td.num { font-size: 17px; }
+  .tblwrap table.data { width: auto; min-width: 100%; }
+  .tblwrap table.data th, .tblwrap table.data td { white-space: nowrap; }
   .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .kpi { background: var(--board); color: #fff; border-radius: var(--radius-l); padding: 12px 14px; }
   .kpi b { display: block; font-size: 32px; line-height: 1.05; color: var(--amber); font-weight: 800; }
@@ -458,7 +470,7 @@
     }).join('');
     $('view').innerHTML = head + `<div class="rcols">
       <div class="rmain">${flowHtml(d)}<ol class="runners o-runners">${rows}</ol></div>
-      <div class="rside">${tipsHtml(d)}${picksHtml(d)}${jdayHtml(d)}</div>
+      <div class="rside">${tipsHtml(d)}${picksHtml(d)}${biasHtml(d)}${jdayHtml(d)}</div>
     </div>`;
     scheduleRefresh(d);
   }
@@ -522,16 +534,18 @@
     const pct = x => x == null ? '' : (x >= 0 ? '↓' : '↑') + Math.abs(Math.round(x * 100)) + '%';
     const cls = x => x == null ? '' : x >= 0.08 ? 'dn2' : x >= 0.03 ? 'dn' : x <= -0.08 ? 'up' : '';
     const runners = d.runners.filter(h => h.flow && !h.scratched);
-    const flagged = runners.filter(h => h.flow.level > 0)
-      .sort((a, b) => b.flow.level - a.flow.level || (b.flow.late ? 1 : 0) - (a.flow.late ? 1 : 0) || b.flow.exBase - a.flow.exBase);
+    const hasPQ = runners.some(h => h.flow.pla || h.flow.qr != null);
+    const flagged = runners.filter(h => h.flow.level > 0 || h.flow.placeFlow || h.flow.qFlow)
+      .sort((a, b) => b.flow.level - a.flow.level || (b.flow.late ? 1 : 0) - (a.flow.late ? 1 : 0) || (b.flow.placeFlow ? 1 : 0) - (a.flow.placeFlow ? 1 : 0) || b.flow.exBase - a.flow.exBase);
+    const lvText = x => [x.late ? '最後落飛' : lvName[x.level], x.placeFlow ? '位置落飛' : '', x.qFlow ? 'Q落飛' : ''].filter(Boolean).join('、');
     const sum = flagged.length ? `<div class="tblwrap"><table class="ftbl">
-      <thead><tr><th class="hn">馬</th><th>級別</th><th>起始</th><th>最新</th><th>全程</th><th>近10分</th><th>最後5分</th><th>額外資金</th></tr></thead>
+      <thead><tr><th class="hn">馬</th><th>訊號</th><th>起始</th><th>最新</th><th>全程</th><th>近10分</th><th>最後5分</th><th>額外資金</th>${hasPQ ? '<th>位置賠率</th><th>位置錢比</th><th>Q錢比</th>' : ''}</tr></thead>
       <tbody>${flagged.map(h => { const x = h.flow; return `<tr class="lv${x.level}">
         <td class="hn"><b class="num">${esc(h.no)}</b> ${esc(h.name)}</td>
-        <td><span class="lvb">${x.late ? '最後落飛' : lvName[x.level]}</span></td>
+        <td><span class="lvb">${lvText(x)}</span></td>
         <td class="num">${o1(x.oddsBase)}</td><td class="num"><b>${o1(x.odds)}</b></td>
         <td class="num ${cls(x.dropBase)}">${pct(x.dropBase)}</td><td class="num ${cls(x.drop10)}">${pct(x.drop10)}</td>
-        <td class="num ${cls(x.drop5)}">${pct(x.drop5)}</td><td class="num">${money(x.exBase)}</td></tr>`; }).join('')}</tbody></table></div>`
+        <td class="num ${cls(x.drop5)}">${pct(x.drop5)}</td><td class="num">${money(x.exBase)}</td>${hasPQ ? `<td class="num ${cls(x.plaDrop)}">${x.pla ? o1(x.plaBase) + '→' + o1(x.pla) : '-'}</td><td class="num${x.pr >= 1.35 ? ' dn' : ''}">${x.pr != null ? x.pr : '-'}</td><td class="num${x.qFlow ? ' dn' : ''}">${x.qr != null ? x.qr : '-'}</td>` : ''}</tr>`; }).join('')}</tbody></table></div>`
       : '<p>暫時冇明顯落飛，賠率走勢平穩。</p>';
     const T = d.flowTable;
     let trend = '';
@@ -540,16 +554,22 @@
       const nameOf = no => { const h = d.runners.find(r => String(r.no) === String(no)); return h ? h.name : ''; };
       const nos = Object.keys(T.rows).sort((a, b) => { const ra = T.rows[a], rb = T.rows[b]; return (ra[ra.length - 1] || 999) - (rb[rb.length - 1] || 999); });
       const open = window.matchMedia('(min-width: 1180px)').matches || finished || (left != null && left <= 15);
+      const ptab = (rowsOf, title) => `<details class="trend"><summary class="fth">${title}<small>紅色係比上一格跌</small></summary><div class="tblwrap"><table class="ftbl trend">
+        <thead><tr><th class="hn">馬</th>${T.cols.map(c => `<th>${esc(c.label)}<br><small>${esc(c.at)}</small></th>`).join('')}</tr></thead>
+        <tbody>${nos.map(no => { const r = rowsOf[no] || []; return `<tr class="lv${lvOf(no)}"><td class="hn"><b class="num">${esc(no)}</b> ${esc(nameOf(no))}</td>${r.map((o, i) => {
+          const p = i ? r[i - 1] : null; const ch = o && p ? 1 - o / p : null;
+          return `<td class="num ${cls(ch)}${i === r.length - 1 ? ' last' : ''}">${o == null ? '-' : o1(o)}</td>`; }).join('')}</tr>`; }).join('')}</tbody></table></div></details>`;
       trend = `<details class="trend"${open ? ' open' : ''}><summary class="fth">賠率走勢（${nos.length} 匹，${T.cols.length} 個時間點）<small>紅色係比上一格跌（落飛），綠色係回飛</small></summary><div class="tblwrap"><table class="ftbl trend">
         <thead><tr><th class="hn">馬</th>${T.cols.map(c => `<th>${esc(c.label)}<br><small>${esc(c.at)}</small></th>`).join('')}</tr></thead>
         <tbody>${nos.map(no => { const r = T.rows[no]; return `<tr class="lv${lvOf(no)}"><td class="hn"><b class="num">${esc(no)}</b> ${esc(nameOf(no))}</td>${r.map((o, i) => {
           const p = i ? r[i - 1] : null; const ch = o && p ? 1 - o / p : null;
           return `<td class="num ${cls(ch)}${i === r.length - 1 ? ' last' : ''}">${o == null ? '-' : o1(o)}</td>`; }).join('')}</tr>`; }).join('')}</tbody></table></div></details>`;
+      if (T.pla) trend += ptab(T.pla, '位置賠率走勢');
     }
     return `<div class="panel flowbox o-flow"><h2>落飛監察 <small>${when}</small></h2>
       <p class="meta">更新 ${esc(f.at)}，獨贏彩池約 $${(f.pool / 1e6).toFixed(1)} 百萬，由 ${esc(f.baseAt)} 開始比較。開跑前 5 分鐘起每 30 秒記錄。</p>
       ${sum}${trend}
-      <small class="fine">額外資金＝估計投注額增幅，減去按原本比例應得嘅增幅（彩池 × 82.5% ÷ 賠率推算）。落飛只代表有人集中大手買，唔代表一定贏。</small></div>`;
+      <small class="fine">額外資金＝估計投注額增幅，減去按原本比例應得嘅增幅（彩池 × 82.5% ÷ 賠率推算）。位置錢比＝位置彩池實際資金份額 ÷ 按獨贏推算應有份額，高過 1 即係位置錢重過獨贏；Q錢比同理計 Q 彩池。位置落飛＝位置錢比明顯上升而且位置賠率跌。落飛只代表有人集中大手買，唔代表一定贏。</small></div>`;
   }
 
   function picksHtml(d) {
@@ -560,6 +580,18 @@
         <span>模型 ${h.model.pf}% 對賠率 ${h.model.pp}%（${esc(h.odds)} 倍）${h.model.reasons ? '，' + esc(h.model.reasons) : ''}</span></li>`).join('')}</ol>`
       : '<p>今場模型冇搵到值博嘅馬，賠率已大致反映實力。</p>';
     return `<div class="panel picks o-picks"><h2>值博之選</h2>${body}<small class="fine">分析時間 ${esc(at)}。只供參考，唔保證贏，請量力而為。</small></div>`;
+  }
+
+  // 當日跑道偏差 + 預計步速
+  function biasHtml(d) {
+    const b = d.bias, pace = d.pace;
+    const name = no => { const h = d.runners.find(x => Number(x.no) === Number(no)); return h ? h.name : ''; };
+    const paceLine = pace && pace.front && pace.front.length ? `<p class="pace">預計前置：${pace.front.map(n => `<b>${n}</b> ${esc(name(n))}`).join('、')}${pace.front.length === 1 ? '（冇對手爭放）' : pace.contested ? '（多駒爭放，步速可能快）' : ''}</p>` : '';
+    if (!b || !b.races) return `<div class="panel bias o-bias"><h2>跑道偏差 <small>今日${b && b.track === 'AW' ? '全天候' : '草地'}</small></h2>${paceLine}<p class="note">今日同類跑道未有跑完嘅場次。每場跑完約 10 至 20 分鐘後更新，比較前置、內檔、後追馬入三甲率同歷史平均。</p></div>`;
+    return `<div class="panel bias o-bias"><h2>跑道偏差 <small>今日${b.track === 'AW' ? '全天候' : '草地'}已跑 ${b.races} 場</small></h2>${paceLine}
+      ${b.items.map(x => `<div class="bi${x.strong ? ' strong' : x.weak ? ' weak' : ''}"><span>${esc(x.label)}${x.strong ? '　今日著數' : x.weak ? '　今日蝕底' : ''}</span><span><span class="num">${x.rate == null ? '-' : x.rate + '%'}</span></span><small>入三甲 ${x.top3}/${x.n}，歷史平均 ${x.base == null ? '-' : x.base + '%'}</small></div>`).join('')}
+      ${b.winners.length ? `<small class="fine">頭馬：${b.winners.map(w => `第${w.race}場 ${w.draw || '-'} 檔，早段第 ${w.early || '-'} 位`).join('；')}</small>` : ''}
+      <small class="fine">場次少嘅時候偏差可能只係巧合；至少 9 匹先會標「今日著數」。</small></div>`;
   }
 
   // 今日騎師戰績：今場之前嘅冠、亞、季同已騎場數
@@ -658,6 +690,15 @@
     return `<h2 class="sec">董事馬</h2><p class="note">按馬主名稱比對 2026/27 年度董事名單，只作統計參考，並不代表有任何不當。</p>${st}`;
   }
 
+  function signalHtml(sg) {
+    if (!sg || !sg.rows || !sg.rows.length) return '<h2 class="sec">訊號成績表</h2><p class="note">未有紀錄。每個賽馬日晚上 11 點自動加入當日結果。</p>';
+    return `<h2 class="sec">訊號成績表</h2>
+      <p class="note">每個訊號觸發過嘅馬實際入三甲幾多，同按最終賠率推算嘅預期比較（${sg.days} 個賽馬日）。「實際/預期」明顯高過 1、而且匹數夠多，先代表賠率未反映到呢個訊號。回報率係每注 $10 買獨贏。</p>
+      <div class="tblwrap"><table class="data"><thead><tr><th>訊號</th><th>匹數</th><th>入三甲</th><th>三甲率</th><th>預期</th><th>實際/預期</th><th>頭馬</th><th>獨贏回報</th></tr></thead><tbody>${
+        sg.rows.map(r => `<tr><td>${esc(r.signal)}</td><td class="num">${r.n}</td><td class="num">${r.top3}</td><td class="num">${r.top3Pct}%</td><td class="num">${r.exp3}</td><td class="num">${r.ae3 == null ? '-' : r.ae3}</td><td class="num">${r.wins}</td><td class="num">${r.roi == null ? '-' : r.roi + '%'}</td></tr>`).join('')
+      }</tbody></table></div>`;
+  }
+
   function setPeriod(p) { S.statPeriod = p; renderStats(); }
 
   function renderStats() {
@@ -677,6 +718,7 @@
         <button aria-pressed="${recent}" onclick="setPeriod('近30日')">近 30 日</button>
         <button aria-pressed="${!recent}" onclick="setPeriod('全部')">全部紀錄</button>
       </div>
+      ${signalHtml(s.signals)}
       ${modelHtml(s.model)}
       <div class="grid2">
         <div><h2 class="sec">騎師</h2><p class="note">基於 ${s.resultRows} 行賽果，按頭馬數排序。</p>${tbl(recent ? s.jockeys : s.jockeysAll, '騎師')}</div>
