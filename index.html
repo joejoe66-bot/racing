@@ -403,6 +403,38 @@
     @keyframes vtIn { from { opacity: 0; transform: translateX(calc(var(--vt-dir, 1) * 32px)); } }
   }
   main { view-transition-name: view; }
+
+  /* ---------- 落飛預警：頂部 ---------- */
+  .alerts { margin-top: 12px; border-radius: var(--r-l); background: var(--board); color: #fff; padding: 12px 14px; box-shadow: var(--shadow);
+    border: 1px solid color-mix(in srgb, var(--signal) 60%, transparent); }
+  .alerts h2 { margin: 0 0 8px; font-size: 15px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--lamp); }
+  .alerts h2 small { font-size: 12px; font-weight: 400; color: rgba(255, 255, 255, .6); }
+  .alerts ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .al { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; text-align: left;
+    padding: 8px 10px; border-radius: var(--r-m); background: var(--board-2); }
+  .al .cl { width: 32px; height: 36px; border-radius: 5px 5px 11px 11px; background: #fff; color: var(--board); display: grid; place-items: center; font-size: 21px; font-weight: 800; }
+  .al strong { display: block; font-size: 15px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .al span { display: block; font-size: 12px; color: rgba(255, 255, 255, .7); }
+  .al em { font-style: normal; font-weight: 700; font-size: 13px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .al.late em { background: var(--signal); color: #fff; }
+  .al.drift em { background: var(--mint); color: var(--board); }
+  .al .od { font-size: 22px; font-weight: 800; color: var(--lamp); margin-right: 6px; }
+  /* 彈出提示 */
+  .toast { position: fixed; z-index: 60; left: 50%; top: calc(10px + env(safe-area-inset-top)); transform: translate(-50%, -150%); width: min(440px, calc(100% - 24px));
+    display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; padding: 10px 14px; border-radius: 16px;
+    background: var(--board); color: #fff; box-shadow: 0 16px 40px -10px rgba(0, 0, 0, .6), inset 0 0 0 1px var(--signal); transition: transform .5s var(--spring); }
+  .toast.show { transform: translate(-50%, 0); }
+  .toast .cl { width: 32px; height: 36px; border-radius: 5px 5px 11px 11px; background: var(--signal); color: #fff; display: grid; place-items: center; font-size: 21px; font-weight: 800; }
+  .toast.drift .cl { background: var(--mint); color: var(--board); }
+  .toast strong { display: block; font-size: 15px; }
+  .toast span { font-size: 13px; color: rgba(255, 255, 255, .75); }
+  .runner.ping { outline: 3px solid var(--signal); outline-offset: 2px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .al.new { animation: alIn .6s var(--spring); }
+    @keyframes alIn { from { opacity: 0; transform: translateY(-12px) scale(.97); } }
+    .runner.ping { animation: ping 1.6s ease-out; }
+    @keyframes ping { from { outline-color: var(--signal); } to { outline-color: transparent; } }
+  }
 </style>
 </head>
 <body>
@@ -551,7 +583,7 @@
       const po = Number(prevOdds[h.no]), no_ = Number(h.odds);
       if (no_ > 0) nowOdds[h.no] = no_;
       const flip = !h.scratched && po > 0 && no_ > 0 && po !== no_ ? (no_ < po ? ' chg dn' : ' chg up') : '';
-      return `<li class="runner${h.scratched ? ' scr' : ''}${isPick ? ' pick' : ''}${fl && fl.level >= 2 ? ' flow' + fl.level : ''}">
+      return `<li id="rn${esc(h.no)}" class="runner${h.scratched ? ' scr' : ''}${isPick ? ' pick' : ''}${fl && fl.level >= 2 ? ' flow' + fl.level : ''}">
         <div class="cloth num">${esc(h.no)}</div>
         <div class="info">
           <div class="nm">${esc(h.name)}<small>${esc(h.code)}</small></div>
@@ -568,11 +600,52 @@
       </li>`;
     }).join('');
     S.odds[r.race_id] = nowOdds;
-    $('view').innerHTML = head + `<div class="rcols">
+    $('view').innerHTML = head + alertsHtml(d) + `<div class="rcols">
       <div class="rmain">${flowHtml(d)}<ol class="runners o-runners">${rows}</ol></div>
       <div class="rside">${tipsHtml(d)}${picksHtml(d)}${biasHtml(d)}${jdayHtml(d)}</div>
     </div>`;
     scheduleRefresh(d);
+  }
+
+  /* 落飛預警：最後落飛機會 ≥20% 或「回飛但模型睇好」嘅馬，集中喺頂部顯示；新出現嘅會彈出提示 */
+  function alertList(d) {
+    const out = [];
+    d.runners.forEach(h => {
+      if (h.scratched) return;
+      const late = (h.tags || []).map(t => /^最後落飛機會 (\d+)%$/.exec(t.t)).find(Boolean);
+      const drift = (h.tags || []).find(t => /回飛但模型睇好/.test(t.t));
+      if (drift) out.push({ k: 'drift', no: h.no, name: h.name, odds: h.odds, label: '回飛・模型睇好', why: '近 10 分鐘賠率 ' + ((/（(.+)）/.exec(drift.t) || [])[1] || '上升') + '，模型仍然睇好', score: 100 });
+      if (late && Number(late[1]) >= 20) out.push({ k: 'late', no: h.no, name: h.name, odds: h.odds, label: '最後落飛 ' + late[1] + '%', why: '臨開跑大機會再有錢落', score: Number(late[1]) });
+    });
+    return out.sort((a, b) => b.score - a.score);
+  }
+  function alertsHtml(d) {
+    const list = alertList(d), rid = d.race.race_id;
+    S.alertSeen = S.alertSeen || {};
+    const seen = S.alertSeen[rid] || {}, now = {};
+    const fresh = [];
+    list.forEach(a => { const key = a.k + a.no; now[key] = 1; if (S.alertSeen[rid] && !seen[key]) fresh.push(a); });
+    S.alertSeen[rid] = now;
+    if (fresh.length) setTimeout(() => toast(fresh[0]), 300);
+    if (!list.length) return '';
+    return `<section class="alerts" aria-live="polite"><h2>落飛預警<small>撳一下跳去嗰匹馬</small></h2><ul>${list.map(a =>
+      `<li><button class="al ${a.k}${fresh.includes(a) ? ' new' : ''}" onclick="jumpRunner(${a.no})"><span class="cl num">${esc(a.no)}</span>
+        <span><strong>${esc(a.name)}</strong><span>${esc(a.why)}</span></span>
+        <span><b class="od num">${esc(a.odds || '-')}</b><em>${esc(a.label)}</em></span></button></li>`).join('')}</ul></section>`;
+  }
+  function toast(a) {
+    let t = $('toast');
+    if (!t) { t = document.createElement('button'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+    t.className = 'toast' + (a.k === 'drift' ? ' drift' : '');
+    t.innerHTML = `<span class="cl num">${esc(a.no)}</span><span><strong>${esc(a.no)} 號 ${esc(a.name)}：${esc(a.label)}</strong><span>${esc(a.why)}</span></span>`;
+    t.onclick = () => { t.classList.remove('show'); jumpRunner(a.no); };
+    requestAnimationFrame(() => t.classList.add('show'));
+    clearTimeout(S.toastT); S.toastT = setTimeout(() => t.classList.remove('show'), 6000);
+  }
+  function jumpRunner(no) {
+    const el = $('rn' + no); if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: calm() ? 'auto' : 'smooth' });
+    el.classList.remove('ping'); void el.offsetWidth; el.classList.add('ping');
   }
 
   // 開跑前 150 分鐘至開跑後 3 分鐘：每分鐘自動更新；開跑前 3 分鐘內每 15 秒
