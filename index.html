@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>香港賽馬分析</title>
-<meta name="theme-color" content="#14402F">
+<meta name="theme-color" content="#0D241B">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -15,107 +15,148 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  /* 設計：沙田賠率大板 —— 深綠底、琥珀數字。大板只用喺場次條同賠率格，其他位置保持安靜。 */
+  /* 設計：夜賽大板 —— 深草綠底、琥珀燈數字、翻牌賠率。大板語言只用喺場次、賠率、數字；其他位置保持安靜。 */
   :root {
-    --board: #0E2B21;       /* 大板深綠 */
-    --board-2: #173D30;
-    --amber: #F2B134;       /* 大板琥珀數字 */
-    --paper: #ECEFEC;       /* 底色：冷灰綠 */
+    color-scheme: light dark;
+    /* 大板（兩個模式都保持深色） */
+    --board: #0D241B;
+    --board-2: #163428;
+    --board-3: #1F4535;
+    --lamp: #FFC23D;          /* 大板琥珀燈 */
+    --lamp-dim: rgba(255, 194, 61, .16);
+    --signal: #E8412F;        /* 落飛 / 熱門 */
+    --signal-soft: rgba(232, 65, 47, .12);
+    --mint: #1F8A57;          /* 回飛 / 著數 */
+    --own: #6A4C9C;
+    /* 版面（淺色） */
+    --bg: #E9EEEA;
     --card: #FFFFFF;
-    --ink: #17201B;
-    --muted: #5F6B65;
-    --line: #DCE1DD;
-    --signal: #D23B2E;      /* 落飛 / 熱門 */
+    --raise: #F4F7F5;
+    --ink: #13201A;
+    --muted: #5C6B63;
+    --line: #D9E0DB;
+    --bar: #CFE0D6;
     --good: #1F7A4D;
     --bad: #A3523A;
-    --own: #6A4C9C;
-    --bar: #CFE0D6;
-    --radius-l: 14px;
-    --radius-s: 6px;
-    --side: 248px;
+    --glass: rgba(255, 255, 255, .72);
+    --shadow: 0 1px 0 rgba(13, 36, 27, .04), 0 8px 24px -12px rgba(13, 36, 27, .25);
+    /* 動態 */
+    --spring: cubic-bezier(.34, 1.36, .64, 1);
+    --out: cubic-bezier(.22, 1, .36, 1);
+    --r-l: 18px;
+    --r-m: 12px;
+    --r-s: 8px;
+    --side: 264px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #0A1511;
-      --card: #12201A;
-      --ink: #E7EDE9;
-      --muted: #94A39B;
-      --line: #22332B;
-      --board: #071A13;
-      --board-2: #143326;
+      --bg: #08140F;
+      --card: #0F1E17;
+      --raise: #142820;
+      --ink: #E6EEE9;
+      --muted: #8FA298;
+      --line: #1E3329;
       --bar: #23473A;
+      --good: #5BD69B;
+      --mint: #5BD69B;
+      --bad: #EF9273;
       --own: #B8A2E0;
-      --good: #4FBF89;
-      --bad: #E08A6E;
+      --signal: #FF5A47;
+      --signal-soft: rgba(255, 90, 71, .14);
+      --glass: rgba(15, 30, 23, .72);
+      --tab-ind: #23503D;
+      --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 10px 30px -14px rgba(0, 0, 0, .7);
     }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--paper); color: var(--ink); }
-  body { font: 15px/1.55 "Noto Sans TC", system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.55 "Noto Sans TC", system-ui, sans-serif; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
   .num { font-family: "Big Shoulders Display", "Barlow Condensed", "Noto Sans TC", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
-  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 4px; }
+  :focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: 6px; }
 
   /* ---------- 骨架 ---------- */
-  .side { background: var(--board); color: #fff; position: sticky; top: 0; z-index: 5; padding: calc(10px + env(safe-area-inset-top)) 16px 0; }
+  .side { background: var(--board); color: #fff; position: sticky; top: 0; z-index: 5; padding: calc(10px + env(safe-area-inset-top)) 14px 0;
+    background-image: radial-gradient(120% 140% at 100% 0%, rgba(255, 194, 61, .08), transparent 55%); }
   .brand { display: none; }
-  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
-  .tabs button { flex: 1; padding: 12px 0 13px; font-size: 15px; color: var(--muted); }
-  .tabs button[aria-current="page"] { color: var(--ink); font-weight: 700; box-shadow: inset 0 3px 0 var(--amber); }
-  .meets { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  /* 底部浮動分頁（手機） */
+  .tabs { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6;
+    display: grid; grid-template-columns: repeat(3, 1fr); width: min(360px, calc(100% - 32px)); padding: 5px; border-radius: 999px;
+    background: var(--glass); -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid var(--line); box-shadow: 0 12px 32px -12px rgba(0, 0, 0, .45); isolation: isolate; }
+  .tabs::before { content: ""; position: absolute; z-index: -1; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 3); border-radius: 999px;
+    background: var(--tab-ind, var(--board)); transform: translateX(calc(var(--ti, 0) * 100%)); transition: transform .45s var(--spring); }
+  .tabs button { padding: 10px 0; font-size: 15px; font-weight: 500; color: var(--muted); border-radius: 999px; transition: color .2s; }
+  .tabs button[aria-current="page"] { color: var(--lamp); font-weight: 700; }
+  .meets { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
   .meets::-webkit-scrollbar, .board::-webkit-scrollbar { display: none; }
-  .meet { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); white-space: nowrap; font-size: 14px; color: rgba(255,255,255,.85); }
-  .meet[aria-pressed="true"] { background: #fff; color: var(--board); border-color: #fff; font-weight: 700; }
-  .board { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 12px; scrollbar-width: none; }
-  .rno { flex: 0 0 auto; width: 48px; height: 54px; border-radius: var(--radius-s); background: var(--board-2); display: grid; place-items: center; align-content: center; gap: 2px; line-height: 1; position: relative; color: rgba(255,255,255,.7); }
-  .rno b { font-size: 27px; font-weight: 800; color: var(--amber); }
+  .meet { padding: 6px 13px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .18); white-space: nowrap; font-size: 14px; color: rgba(255, 255, 255, .8);
+    scroll-snap-align: start; transition: background .2s, color .2s, border-color .2s; }
+  .meet[aria-pressed="true"] { background: var(--lamp); color: var(--board); border-color: var(--lamp); font-weight: 700; }
+  .board { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 12px; scrollbar-width: none; scroll-snap-type: x proximity; }
+  /* 場次牌：小型翻牌 */
+  .rno { flex: 0 0 auto; width: 50px; height: 58px; border-radius: var(--r-s); background: var(--board-2); display: grid; place-items: center; align-content: center; gap: 3px;
+    line-height: 1; position: relative; color: rgba(255, 255, 255, .62); scroll-snap-align: center; overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); transition: background .25s var(--out), color .25s; }
+  .rno::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0, 0, 0, .35); }
+  .rno b { font-size: 28px; font-weight: 800; color: var(--lamp); }
   .rno small { font-size: 11px; }
   .rno .info { display: none; }
-  .rno[aria-current="true"] { background: var(--amber); color: var(--board); }
+  .rno[aria-current="true"] { background: var(--lamp); color: var(--board); }
   .rno[aria-current="true"] b { color: var(--board); }
-  .rno .ttb { position: absolute; top: 3px; right: 3px; font-style: normal; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 3px; background: var(--signal); color: #fff; }
-  main { padding: 16px 16px calc(84px + env(safe-area-inset-bottom)); max-width: 760px; margin: 0 auto; }
+  .rno[aria-current="true"]::after { background: rgba(13, 36, 27, .18); }
+  .rno .ttb { position: absolute; top: 3px; right: 3px; font-style: normal; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 4px; background: var(--signal); color: #fff; z-index: 1; }
+  main { padding: 16px 14px calc(96px + env(safe-area-inset-bottom)); max-width: 760px; margin: 0 auto; }
 
   /* iPad 及以上：左邊場次欄，分頁搬去欄頂 */
   @media (min-width: 820px) {
     .app { display: grid; grid-template-columns: var(--side) minmax(0, 1fr); min-height: 100vh; }
-    .side { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 20px 14px 24px; display: flex; flex-direction: column; gap: 14px; }
-    .brand { display: block; font-size: 15px; font-weight: 700; letter-spacing: .02em; color: #fff; }
-    .brand span { display: block; font-size: 12px; font-weight: 400; color: rgba(255,255,255,.6); }
-    .tabs { position: static; order: -1; background: var(--board-2); border: 0; border-radius: 999px; padding: 3px; }
+    .side { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 22px 14px 24px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; }
+    .brand { display: block; font-size: 16px; font-weight: 700; letter-spacing: .02em; color: #fff; }
+    .brand span { display: block; font-size: 12px; font-weight: 400; color: rgba(255, 255, 255, .55); margin-top: 2px; }
+    .tabs { position: relative; left: auto; bottom: auto; transform: none; order: -1; width: auto; background: var(--board-2); border: 0; box-shadow: none;
+      -webkit-backdrop-filter: none; backdrop-filter: none; padding: 4px; }
+    .tabs::before { top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 3); background: var(--lamp); }
+    .tabs button { padding: 7px 0; font-size: 14px; color: rgba(255, 255, 255, .7); }
+    .tabs button[aria-current="page"] { color: var(--board); }
     .brand { order: -2; }
-    .tabs button { padding: 6px 0; font-size: 14px; color: rgba(255,255,255,.75); border-radius: 999px; }
-    .tabs button[aria-current="page"] { background: var(--amber); color: var(--board); box-shadow: none; }
     .meets { flex-wrap: wrap; }
     .meet { font-size: 13px; padding: 5px 10px; }
     .board { flex-direction: column; overflow: visible; padding: 0; gap: 4px; }
-    .rno { width: auto; height: auto; grid-template-columns: 44px 1fr; justify-items: start; align-items: center; padding: 8px 10px; gap: 0 8px; text-align: left; }
+    .rno { width: auto; height: auto; grid-template-columns: 46px 1fr; justify-items: start; align-items: center; padding: 9px 10px; gap: 0 10px; text-align: left; }
+    .rno::after { display: none; }
     .rno b { font-size: 30px; grid-row: span 2; justify-self: center; }
     .rno small { font-size: 13px; color: #fff; }
-    .rno .info { display: block; font-size: 12px; color: rgba(255,255,255,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .rno .info { display: block; font-size: 12px; color: rgba(255, 255, 255, .55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .rno:not([aria-current="true"]):hover { background: var(--board-3); }
     .rno[aria-current="true"] small, .rno[aria-current="true"] .info { color: var(--board); }
     .rno .ttb { top: 8px; right: 8px; font-size: 10px; }
-    main { padding: 24px 28px 48px; max-width: none; margin: 0; }
+    main { padding: 26px 30px 48px; max-width: none; margin: 0; }
   }
 
   /* ---------- 場次頭：大板 ---------- */
-  .rhead { background: var(--board); color: #fff; border-radius: var(--radius-l); padding: 16px 18px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 16px; align-items: center; }
-  .rhead .big { font-size: 64px; font-weight: 800; line-height: .9; color: var(--amber); grid-row: span 2; }
+  .rhead { background: var(--board); color: #fff; border-radius: var(--r-l); padding: 18px 20px; display: grid; grid-template-columns: auto 1fr auto; gap: 6px 18px; align-items: center;
+    position: relative; overflow: hidden; box-shadow: var(--shadow);
+    background-image: linear-gradient(115deg, transparent 55%, rgba(255, 194, 61, .07)), repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 4px); }
+  .rhead .big { font-size: 72px; font-weight: 800; line-height: .86; color: var(--lamp); grid-row: span 2; text-shadow: 0 0 24px rgba(255, 194, 61, .25); }
   .rhead h1 { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.3; }
-  .rhead .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: rgba(255,255,255,.72); grid-column: 2 / 4; }
+  .rhead .facts { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: rgba(255, 255, 255, .7); grid-column: 2 / 4; }
+  .rhead .facts > span { background: rgba(255, 255, 255, .06); border-radius: 999px; padding: 2px 10px; }
   .rhead .facts b { color: #fff; font-weight: 500; }
   .rhead .clock { grid-column: 3; grid-row: 1; justify-self: end; text-align: right; }
-  .clock .num { display: block; font-size: 30px; font-weight: 800; color: var(--amber); line-height: 1; }
-  .clock small { font-size: 12px; color: rgba(255,255,255,.65); }
-  .refresh { font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; background: var(--amber); color: var(--board); white-space: nowrap; }
+  .clock .num { display: block; font-size: 32px; font-weight: 800; color: var(--lamp); line-height: 1; }
+  .clock small { font-size: 12px; color: rgba(255, 255, 255, .6); }
+  .live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--signal); margin-right: 6px; vertical-align: middle; }
+  .refresh { font-size: 14px; font-weight: 700; padding: 8px 16px; border-radius: 999px; background: var(--board); color: var(--lamp); white-space: nowrap; transition: transform .15s var(--out), opacity .2s; }
   .refresh[disabled] { opacity: .6; }
-  .rtools { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin: 10px 2px 0; font-size: 13px; color: var(--muted); }
-  .ttbadge { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--signal); color: #fff; }
+  .rtools { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin: 10px 4px 0; font-size: 13px; color: var(--muted); }
+  .ttbadge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--signal); color: #fff; }
+  .rhead .facts > .ttbadge { background: var(--signal); color: #fff; }
   @media (max-width: 480px) {
-    .rhead { grid-template-columns: auto 1fr; padding: 14px; }
-    .rhead .big { font-size: 52px; }
+    .rhead { grid-template-columns: auto 1fr; padding: 16px; gap: 6px 14px; }
+    .rhead .big { font-size: 58px; grid-row: auto; }
     .rhead .clock { grid-column: 1 / 3; grid-row: auto; justify-self: start; text-align: left; display: flex; gap: 8px; align-items: baseline; }
-    .clock .num { display: inline; font-size: 24px; }
+    .clock .num { display: inline; font-size: 26px; }
     .rhead .facts { grid-column: 1 / 3; }
   }
 
@@ -130,156 +171,167 @@
   }
   @media (min-width: 1500px) { .rcols { grid-template-columns: minmax(0, 1fr) 420px; } }
 
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-l); padding: 14px 16px; }
-  .panel h2 { margin: 0 0 8px; font-size: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-l); padding: 16px 18px; box-shadow: var(--shadow); }
+  .panel h2 { margin: 0 0 10px; font-size: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .panel h2 small { font-weight: 400; font-size: 12px; color: var(--muted); }
-  .fine { display: block; margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .fine { display: block; margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.55; }
   .note { font-size: 13px; color: var(--muted); margin: 6px 0 10px; }
 
   /* 心水 */
-  .tips { border: 2px solid var(--amber); }
-  .tips .row { display: grid; grid-template-columns: 52px 1fr; gap: 6px 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
+  .tips { border-color: transparent; box-shadow: inset 0 0 0 2px var(--lamp), var(--shadow); }
+  .tips .row { display: grid; grid-template-columns: 52px 1fr; gap: 6px 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
   .tips .row:first-of-type { border-top: 0; padding-top: 2px; }
   .tips .row > b { color: var(--muted); font-weight: 700; font-size: 13px; }
   .banker { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-  .banker .num { font-size: 34px; font-weight: 800; line-height: 1; }
-  .banker strong { font-size: 17px; }
+  .banker .num { font-size: 38px; font-weight: 800; line-height: 1; }
+  .banker strong { font-size: 18px; }
   .sub { color: var(--muted); font-size: 13px; width: 100%; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { padding: 3px 9px; border-radius: var(--radius-s); background: var(--paper); font-size: 13px; }
-  .chip.v { background: var(--amber); color: #17201B; font-weight: 700; }
+  .chip { padding: 4px 10px; border-radius: 999px; background: var(--raise); border: 1px solid var(--line); font-size: 13px; }
+  .chip.v { background: var(--lamp); border-color: var(--lamp); color: #17201B; font-weight: 700; }
 
   /* 值博 */
   .picks { background: var(--board); color: #fff; border: 0; }
-  .picks h2 { color: var(--amber); }
-  .picks ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-  .picks li { display: grid; grid-template-columns: 34px 1fr; gap: 0 10px; align-items: baseline; }
-  .picks li .num { font-size: 26px; font-weight: 800; color: var(--amber); grid-row: span 2; }
-  .picks li span { font-size: 13px; color: rgba(255,255,255,.75); }
-  .picks p { margin: 0; font-size: 14px; color: rgba(255,255,255,.85); }
-  .picks .fine { color: rgba(255,255,255,.6); }
+  .picks h2 { color: var(--lamp); }
+  .picks ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .picks li { display: grid; grid-template-columns: 36px 1fr; gap: 0 10px; align-items: baseline; }
+  .picks li .num { font-size: 28px; font-weight: 800; color: var(--lamp); grid-row: span 2; }
+  .picks li span { font-size: 13px; color: rgba(255, 255, 255, .72); }
+  .picks p { margin: 0; font-size: 14px; color: rgba(255, 255, 255, .85); }
+  .picks .fine { color: rgba(255, 255, 255, .55); }
 
   /* 跑道偏差 */
-  .bias .bi { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
+  .bias .bi { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
   .bias .bi:first-of-type { border-top: 0; }
-  .bias .bi .num { font-size: 18px; font-weight: 700; }
+  .bias .bi .num { font-size: 20px; font-weight: 700; }
   .bias .bi small { grid-column: 1 / 3; font-size: 12px; color: var(--muted); }
   .bias .bi.strong .num, .bias .bi.strong span:first-child { color: var(--good); font-weight: 700; }
   .bias .bi.weak .num { color: var(--bad); }
   .bias .pace { font-size: 13px; margin: 0 0 6px; }
-  .bias .pace b { font-family: "Big Shoulders Display", "Barlow Condensed", sans-serif; font-size: 17px; }
+  .bias .pace b { font-family: "Big Shoulders Display", "Barlow Condensed", sans-serif; font-size: 18px; }
 
   /* 騎師今日 */
   .jtbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   .jtbl th { font-size: 12px; font-weight: 500; color: var(--muted); text-align: right; padding: 0 6px 4px; }
   .jtbl th:first-child, .jtbl td:first-child { text-align: left; padding-left: 0; }
-  .jtbl td { padding: 5px 6px; border-top: 1px solid var(--line); text-align: right; }
-  .jtbl td .num { font-size: 17px; font-weight: 600; }
+  .jtbl td { padding: 6px; border-top: 1px solid var(--line); text-align: right; }
+  .jtbl td .num { font-size: 18px; font-weight: 600; }
   .jtbl tr.hot td:first-child { color: var(--good); font-weight: 700; }
   .jtbl tr.dry td:first-child { color: var(--bad); }
 
   /* 落飛 */
-  .flowbox { border: 2px solid var(--signal); }
-  .flowbox.quiet { border: 1px dashed var(--line); }
+  .flowbox { border-color: transparent; box-shadow: inset 0 0 0 2px var(--signal), var(--shadow); }
+  .flowbox.quiet { box-shadow: var(--shadow); border: 1px dashed var(--line); }
   .flowbox h2 { color: var(--signal); }
   .flowbox.quiet h2 { color: var(--muted); }
   .flowbox p { margin: 0; font-size: 14px; }
-  .flowbox .meta { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .flowbox .meta { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
   .tblwrap { overflow-x: auto; margin: 6px -4px 0; -webkit-overflow-scrolling: touch; }
   .ftbl { width: auto; min-width: 100%; border-collapse: collapse; font-size: 13px; }
-  .ftbl th, .ftbl td { padding: 5px 7px; text-align: right; white-space: nowrap; border-top: 1px solid var(--line); }
+  .ftbl th, .ftbl td { padding: 6px 8px; text-align: right; white-space: nowrap; border-top: 1px solid var(--line); }
   .ftbl th { font-size: 11px; line-height: 1.25; font-weight: 500; color: var(--muted); border-top: 0; vertical-align: bottom; }
   .ftbl th small { font-size: 10px; }
   .ftbl .hn { text-align: left; position: sticky; left: 0; background: var(--card); z-index: 1; max-width: 132px; overflow: hidden; text-overflow: ellipsis; }
   .ftbl tr.lv3 .hn { box-shadow: inset 3px 0 0 var(--signal); }
-  .ftbl tr.lv2 .hn { box-shadow: inset 3px 0 0 rgba(210, 59, 46, .5); }
+  .ftbl tr.lv2 .hn { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--signal) 50%, transparent); }
   .ftbl td.dn { color: var(--signal); }
   .ftbl td.dn2 { color: #fff; background: var(--signal); font-weight: 700; }
   .ftbl td.up { color: var(--good); }
   .ftbl td.last { font-weight: 700; }
   .ftbl .num { font-size: 15px; }
   .ftbl .lvb { font-size: 11px; font-weight: 700; color: var(--signal); }
-  .ftbl tr.lv3 .lvb { color: #fff; background: var(--signal); border-radius: 999px; padding: 1px 6px; }
+  .ftbl tr.lv3 .lvb { color: #fff; background: var(--signal); border-radius: 999px; padding: 1px 7px; }
   .fth { font-size: 14px; margin: 14px 0 0; font-weight: 700; cursor: pointer; }
   details.trend summary { list-style: none; padding: 6px 0; }
   details.trend summary::-webkit-details-marker { display: none; }
-  details.trend summary::before { content: "▸"; display: inline-block; width: 1em; color: var(--muted); transition: transform .15s; }
+  details.trend summary::before { content: "▸"; display: inline-block; width: 1em; color: var(--muted); transition: transform .25s var(--spring); }
   details.trend[open] summary::before { transform: rotate(90deg); }
   .fth small { font-weight: 400; color: var(--muted); font-size: 11px; margin-left: 6px; }
 
   /* ---------- 馬匹 ---------- */
-  .runners { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-l); overflow: hidden; }
-  .runner { display: grid; grid-template-columns: 40px minmax(0, 1fr) 78px; gap: 12px; padding: 14px; border-top: 1px solid var(--line); align-items: start; }
-  .runner:first-child { border-top: 0; }
+  .runners { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .runner { display: grid; grid-template-columns: 42px minmax(0, 1fr) 80px; gap: 12px; padding: 14px; align-items: start; position: relative;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow); }
   .runner.scr { opacity: .4; }
-  .runner.pick { box-shadow: inset 4px 0 0 var(--amber); }
-  .runner.flow3 { box-shadow: inset 4px 0 0 var(--signal); }
-  .runner.flow2 { box-shadow: inset 4px 0 0 rgba(210, 59, 46, .5); }
-  .cloth { width: 40px; height: 44px; border-radius: var(--radius-s); background: var(--ink); color: var(--paper); display: grid; place-items: center; font-size: 26px; font-weight: 800; }
+  .runner.pick { box-shadow: inset 4px 0 0 var(--lamp), var(--shadow); }
+  .runner.flow3 { box-shadow: inset 4px 0 0 var(--signal), var(--shadow); background: linear-gradient(90deg, var(--signal-soft), var(--card) 40%); }
+  .runner.flow2 { box-shadow: inset 4px 0 0 color-mix(in srgb, var(--signal) 55%, transparent), var(--shadow); }
+  /* 馬號：馬布 */
+  .cloth { width: 42px; height: 48px; border-radius: 6px 6px 14px 14px; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-size: 27px; font-weight: 800; }
   .nm { font-weight: 700; font-size: 17px; line-height: 1.3; }
   .nm small { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
   .who { font-size: 13px; color: var(--muted); }
   .who em { font-style: normal; color: var(--ink); }
   .stats { display: flex; gap: 6px 14px; margin-top: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; align-items: center; }
-  .stats .num { font-size: 18px; color: var(--ink); font-weight: 600; }
+  .stats .num { font-size: 19px; color: var(--ink); font-weight: 600; }
   .gate { display: inline-flex; align-items: center; gap: 6px; }
   .gate i { display: inline-block; width: 52px; height: 6px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
-  .gate i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); background: var(--good); }
+  .gate i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); background: var(--good); border-radius: 3px; }
   .form { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
-  .form span { min-width: 24px; height: 24px; padding: 0 4px; border-radius: 4px; background: var(--paper); display: grid; place-items: center; font-size: 15px; font-weight: 600; }
-  .form span.w { background: var(--amber); color: #17201B; }
-  .form span.p { box-shadow: inset 0 0 0 1.5px var(--good); color: var(--good); }
+  .form span { min-width: 25px; height: 25px; padding: 0 4px; border-radius: 6px; background: var(--raise); border: 1px solid var(--line); display: grid; place-items: center; font-size: 15px; font-weight: 600; }
+  .form span.w { background: var(--lamp); border-color: var(--lamp); color: #17201B; }
+  .form span.p { border-color: var(--good); color: var(--good); }
   .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; line-height: 1.6; }
+  .tag { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; line-height: 1.6; }
   .tag.good { color: var(--good); }
   .tag.bad { color: var(--bad); }
   .tag.info { color: var(--muted); }
-  .tag.value { color: #17201B; background: var(--amber); border-color: var(--amber); font-weight: 700; }
+  .tag.value { color: #17201B; background: var(--lamp); border-color: var(--lamp); font-weight: 700; }
   .tag.flow3 { background: var(--signal); border-color: var(--signal); color: #fff; font-weight: 700; }
   .tag.flow2 { color: var(--signal); font-weight: 700; }
   .tag.flow1 { color: var(--signal); }
   .tag.own { color: var(--own); }
   .tag.own2 { color: #fff; background: var(--own); border-color: var(--own); font-weight: 700; }
+  /* 最後落飛機會：細計量條 */
+  .tag.late { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); border-color: var(--line); }
+  .tag.late i { width: 36px; height: 5px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
+  .tag.late i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); background: var(--signal); border-radius: 3px; }
+  .tag.late b { color: var(--ink); font-weight: 700; }
+  .tag.late.hi { border-color: var(--signal); color: var(--signal); }
+  .tag.late.hi b { color: var(--signal); }
   .cond { margin-top: 8px; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
-  /* 賠率格：同場次頭一樣嘅大板 */
-  .odds { display: grid; justify-items: end; gap: 4px; }
-  .tile { width: 78px; border-radius: var(--radius-s); background: var(--board); color: var(--amber); text-align: center; padding: 6px 0 4px; line-height: 1; }
-  .tile .num { font-size: 30px; font-weight: 800; display: block; }
-  .tile small { font-size: 10px; color: rgba(255,255,255,.6); }
+
+  /* 賠率格：翻牌（split-flap） */
+  .odds { display: grid; justify-items: end; gap: 5px; }
+  .tile { width: 80px; border-radius: var(--r-s); background: var(--board); color: var(--lamp); text-align: center; padding: 7px 0 5px; line-height: 1; position: relative; overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 6px 14px -8px rgba(0, 0, 0, .6); perspective: 240px; }
+  .tile::after { content: ""; position: absolute; left: 0; right: 0; top: 46%; height: 1px; background: rgba(0, 0, 0, .45); box-shadow: 0 1px 0 rgba(255, 255, 255, .05); }
+  .tile .num { font-size: 31px; font-weight: 800; display: block; transform-origin: 50% 46%; }
+  .tile small { font-size: 10px; color: rgba(255, 255, 255, .55); }
   .odds.fav .tile { background: var(--signal); color: #fff; }
-  .odds.fav .tile small { color: rgba(255,255,255,.85); }
+  .odds.fav .tile small { color: rgba(255, 255, 255, .85); }
   .was { font-size: 11px; color: var(--signal); font-weight: 700; }
   .model { font-size: 12px; color: var(--muted); }
-  .model .num { font-size: 16px; font-weight: 700; color: var(--ink); }
-  .res { font-size: 12px; padding: 1px 7px; border-radius: 4px; background: var(--amber); color: #17201B; font-weight: 700; }
+  .model .num { font-size: 17px; font-weight: 700; color: var(--ink); }
+  .res { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--lamp); color: #17201B; font-weight: 700; }
   .runner .cloth { grid-column: 1; grid-row: 1 / span 2; }
   .runner .info { grid-column: 2; grid-row: 1; }
   .runner .col2 { grid-column: 2; grid-row: 2; margin-top: -4px; }
   .runner .odds { grid-column: 3; grid-row: 1 / span 2; }
   @media (min-width: 1180px) {
-    .runner { grid-template-columns: 44px minmax(0, 1.25fr) minmax(0, 1fr) 84px; gap: 16px; padding: 16px 18px; }
+    .runner { grid-template-columns: 46px minmax(0, 1.25fr) minmax(0, 1fr) 86px; gap: 16px; padding: 16px 18px; }
     .runner .cloth { grid-row: 1; }
     .runner .col2 { grid-column: 3; grid-row: 1; margin-top: 0; }
     .runner .col2 > :first-child { margin-top: 0; }
     .runner .odds { grid-column: 4; grid-row: 1; }
-    .cloth { width: 44px; height: 48px; font-size: 28px; }
-    .tile { width: 84px; }
+    .cloth { width: 46px; height: 52px; font-size: 29px; }
+    .tile { width: 86px; }
   }
   @media (max-width: 480px) {
-    .runner { grid-template-columns: 34px minmax(0, 1fr) 66px; gap: 10px; padding: 12px; }
-    .cloth { width: 34px; height: 38px; font-size: 22px; }
-    .tile { width: 66px; }
-    .tile .num { font-size: 26px; }
+    .runner { grid-template-columns: 36px minmax(0, 1fr) 68px; gap: 10px; padding: 12px; }
+    .cloth { width: 36px; height: 42px; font-size: 23px; }
+    .tile { width: 68px; }
+    .tile .num { font-size: 27px; }
     .stats { gap: 4px 12px; }
-    .stats .num { font-size: 16px; }
+    .stats .num { font-size: 17px; }
   }
 
   /* ---------- 今日 / 統計 ---------- */
-  .page h2.sec { font-size: 19px; margin: 26px 0 6px; }
+  .page h2.sec { font-size: 20px; margin: 28px 0 6px; }
   .page h2.sec:first-child { margin-top: 0; }
   .grid2 { display: grid; gap: 12px; }
   @media (min-width: 1180px) { .grid2 { grid-template-columns: 1fr 1fr; align-items: start; } }
-  .og { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-l); padding: 12px 14px; }
+  .og { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 13px 15px; box-shadow: var(--shadow); }
   .og h3 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
   .og h3 small { font-weight: 400; color: var(--muted); font-size: 12px; }
   .og ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -288,43 +340,76 @@
   .og li span { color: var(--muted); font-size: 13px; }
   .og li em { font-style: normal; color: var(--ink); }
   .og .same { font-size: 11px; color: #fff; background: var(--own); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
-  .seg { display: inline-flex; border-radius: 999px; padding: 3px; margin-bottom: 4px; background: var(--card); border: 1px solid var(--line); }
-  .seg button { padding: 5px 14px; border-radius: 999px; font-size: 13px; }
-  .seg button[aria-pressed="true"] { background: var(--board); color: var(--amber); font-weight: 700; }
-  table.data { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-l); overflow: hidden; font-size: 14px; }
-  table.data th, table.data td { padding: 8px 10px; text-align: right; border-top: 1px solid var(--line); }
+  .seg { display: inline-grid; grid-template-columns: 1fr 1fr; border-radius: 999px; padding: 4px; margin-bottom: 4px; background: var(--card); border: 1px solid var(--line); position: relative; isolation: isolate; }
+  .seg::before { content: ""; position: absolute; z-index: -1; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px; background: var(--board);
+    transform: translateX(calc(var(--si, 0) * 100%)); transition: transform .4s var(--spring); }
+  .seg button { padding: 6px 16px; border-radius: 999px; font-size: 13px; transition: color .2s; }
+  .seg button[aria-pressed="true"] { color: var(--lamp); font-weight: 700; }
+  table.data { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; font-size: 14px; }
+  table.data th, table.data td { padding: 9px 10px; text-align: right; border-top: 1px solid var(--line); }
   table.data th { font-weight: 500; color: var(--muted); font-size: 12px; border-top: 0; }
   table.data th:first-child, table.data td:first-child { text-align: left; }
   table.data td .num, table.data td.num { font-size: 17px; }
   .tblwrap table.data { width: auto; min-width: 100%; }
   .tblwrap table.data th, .tblwrap table.data td { white-space: nowrap; }
   .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .kpi { background: var(--board); color: #fff; border-radius: var(--radius-l); padding: 12px 14px; }
-  .kpi b { display: block; font-size: 32px; line-height: 1.05; color: var(--amber); font-weight: 800; }
-  .kpi span { font-size: 12px; color: rgba(255,255,255,.7); }
+  .kpi { background: var(--board); color: #fff; border-radius: var(--r-m); padding: 13px 15px; }
+  .kpi b { display: block; font-size: 34px; line-height: 1.05; color: var(--lamp); font-weight: 800; }
+  .kpi span { font-size: 12px; color: rgba(255, 255, 255, .68); }
   .draws { display: grid; gap: 12px; }
   @media (min-width: 820px) { .draws { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); } }
-  .dg { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-l); padding: 12px 14px; }
+  .dg { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 13px 15px; box-shadow: var(--shadow); }
   .dg h3 { margin: 0 0 8px; font-size: 15px; }
   .dg h3 small { color: var(--muted); font-weight: 400; margin-left: 6px; }
   .bars { display: flex; align-items: flex-end; gap: 4px; height: 88px; }
   .bars div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
-  .bars div i { width: 100%; background: var(--bar); border-radius: 3px 3px 0 0; }
+  .bars div i { width: 100%; background: var(--bar); border-radius: 4px 4px 0 0; }
   .bars div i.top { background: var(--good); }
   .bars div span { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
-  .empty, .loading { padding: 40px 16px; text-align: center; color: var(--muted); }
+  .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+
+  /* 骨架載入 */
+  .skel { display: grid; gap: 10px; }
+  .skel i { display: block; height: 92px; border-radius: var(--r-m); background: var(--card); border: 1px solid var(--line); position: relative; overflow: hidden; }
+  .skel i:first-child { height: 112px; border-radius: var(--r-l); background: var(--board); border: 0; }
+  .skel i::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 7%, transparent), transparent); }
+  .skel i:first-child::after { background: linear-gradient(90deg, transparent, rgba(255, 194, 61, .1), transparent); }
+  .skel span { text-align: center; font-size: 13px; color: var(--muted); padding-top: 4px; }
+
+  /* ---------- 動態 ---------- */
   @media (prefers-reduced-motion: no-preference) {
-    .rhead .big { animation: flip .35s ease-out; }
-    @keyframes flip { from { transform: translateY(-8px); opacity: 0; } }
+    button:active { transform: scale(.97); }
+    .tabs button:active, .seg button:active { transform: none; }
+    .rno, .meet, .refresh, .og li button { transition: transform .15s var(--out), background .25s var(--out), color .25s; }
+    .skel i::after { animation: shimmer 1.3s infinite; }
+    @keyframes shimmer { to { transform: translateX(100%); } }
+    .live { animation: pulse 1.4s ease-out infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 90, 71, .65); } 100% { box-shadow: 0 0 0 9px rgba(255, 90, 71, 0); } }
+    /* 招牌動畫：賠率變動 → 翻牌，落飛閃紅、回飛閃綠 */
+    .tile.chg .num { animation: flap .55s var(--out); }
+    .tile.chg.dn { animation: glowDn 1.6s ease-out; }
+    .tile.chg.up { animation: glowUp 1.6s ease-out; }
+    @keyframes flap { 0% { transform: rotateX(0); } 45% { transform: rotateX(-90deg); opacity: .2; } 55% { transform: rotateX(90deg); opacity: .2; } 100% { transform: rotateX(0); } }
+    @keyframes glowDn { 0%, 30% { box-shadow: 0 0 0 2px var(--signal), 0 0 22px -2px var(--signal); } 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 6px 14px -8px rgba(0, 0, 0, .6); } }
+    @keyframes glowUp { 0%, 30% { box-shadow: 0 0 0 2px var(--mint), 0 0 22px -2px var(--mint); } 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 6px 14px -8px rgba(0, 0, 0, .6); } }
+    .tag.late i::after { transition: width .8s var(--out); }
+    /* 轉場：按場次方向滑入 */
+    ::view-transition-old(view) { animation: vtOut .22s ease-in both; }
+    ::view-transition-new(view) { animation: vtIn .38s var(--out) both; }
+    ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+    @keyframes vtOut { to { opacity: 0; transform: translateX(calc(var(--vt-dir, 1) * -24px)); } }
+    @keyframes vtIn { from { opacity: 0; transform: translateX(calc(var(--vt-dir, 1) * 32px)); } }
   }
+  main { view-transition-name: view; }
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side" id="top">
     <div class="brand">香港賽馬分析<span>排位、落飛、心水</span></div>
-    <nav class="tabs" aria-label="分頁">
+    <nav class="tabs" id="tabs" aria-label="分頁">
       <button id="tabRace" aria-current="page" onclick="showRaces()">賽事</button>
       <button id="tabDay" onclick="showDay()">今日</button>
       <button id="tabStats" onclick="showStats()">統計</button>
@@ -332,7 +417,7 @@
     <div class="meets" id="meets" role="group" aria-label="賽事日"></div>
     <div class="board" id="board" role="group" aria-label="場次"></div>
   </aside>
-  <main id="view"><div class="loading">讀取賽事中…</div></main>
+  <main id="view"><div class="skel" aria-busy="true"><i></i><i></i><i></i><span>讀取賽事中…</span></div></main>
 </div>
 
 <script>
@@ -368,6 +453,11 @@
   const dayName = d => { const t = new Date(d + 'T00:00:00+08:00'); return '日一二三四五六'.charAt(t.getDay()); };
   const md = d => { const p = String(d).split('-'); return Number(p[1]) + '月' + Number(p[2]) + '日'; };
   const wide = () => window.matchMedia('(min-width: 820px)').matches;
+  const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 骨架載入：用灰色方塊頂住位，唔使對住一行字等
+  const skel = msg => `<div class="skel" aria-busy="true"><i></i><i></i><i></i><i></i><span>${msg}</span></div>`;
+  // 轉場：有 View Transitions 就用，冇就直接換
+  const swap = fn => (document.startViewTransition && !calm()) ? document.startViewTransition(fn) : fn();
   const o1 = x => (x == null || x === '' || isNaN(x)) ? esc(x) : String(Math.round(Number(x) * 10) / 10);
 
   function fail(e) { $('view').innerHTML = '<div class="empty">讀取失敗：' + esc(e && e.message || e) + '<br>請重新整理頁面再試。</div>'; }
@@ -402,11 +492,14 @@
   }
 
   async function pickRace(id) {
+    const rs = S.meeting ? S.meeting.races : [];
+    const from = rs.findIndex(r => r.id === S.raceId), to = rs.findIndex(r => r.id === id);
+    document.documentElement.style.setProperty('--vt-dir', to >= from ? 1 : -1);
     S.raceId = id;
     renderBoard();
-    $('view').innerHTML = '<div class="loading">讀取排位中…</div>';
+    $('view').innerHTML = skel('讀取排位中…');
     if (!wide()) window.scrollTo(0, 0);
-    try { renderRace(await call('apiRace', id)); } catch (e) { fail(e); }
+    try { const d = await call('apiRace', id); if (S.raceId === id) swap(() => renderRace(d)); } catch (e) { fail(e); }
   }
 
   function countdown(d) {
@@ -414,7 +507,7 @@
     if (left == null) return '';
     if (d.runners.some(h => Number(h.pos) > 0)) return '<span class="num">完賽</span><small>已有賽果</small>';
     if (left <= 0) return '<span class="num">已開跑</span><small>等賽果</small>';
-    if (left <= 90) return `<span class="num">${left} 分</span><small>開跑前</small>`;
+    if (left <= 90) return `<span class="num">${left <= 10 ? '<i class="live" aria-hidden="true"></i>' : ''}${left} 分</span><small>開跑前</small>`;
     if (left < 1440) return `<span class="num">${Math.round(left / 60)} 小時</span><small>開跑前約</small>`;
     return `<span class="num">${Math.round(left / 1440)} 日</span><small>開跑前約</small>`;
   }
@@ -436,6 +529,9 @@
     </section>
     <div class="rtools"><span>${d.avgDrawWin ? '綠條係呢個路程嘅檔位歷史勝率（平均 ' + d.avgDrawWin + '%）。紅色賠率格係熱門。' : '紅色賠率格係熱門。'}</span><button class="refresh" id="btnRefresh" onclick="refreshRace()">刷新</button></div>`;
     const maxW = Math.max(20, ...d.runners.map(h => h.drawWin || 0));
+    // 記低上次見到嘅賠率：有變就翻牌（落飛閃紅、回飛閃綠）
+    S.odds = S.odds || {};
+    const prevOdds = S.odds[r.race_id] || {}, nowOdds = {};
     const rows = d.runners.map(h => {
       const formHtml = h.form.map(f => {
         const p = parseInt(f.pos, 10);
@@ -443,7 +539,7 @@
       }).join('');
       const isPick = h.model && h.model.value;
       const tags = (isPick ? `<span class="tag value">值博 +${Math.round(h.model.edge * 100)}%</span>` : '') +
-        h.tags.map(t => `<span class="tag ${t.k}">${t.t}</span>`).join('');
+        h.tags.map(tagHtml).join('');
       const gate = h.drawWin == null ? `<span class="gate">檔 <span class="num">${esc(h.draw)}</span></span>`
         : `<span class="gate" title="${h.drawN} 次出賽">檔 <span class="num">${esc(h.draw)}</span><i style="--w:${Math.round(h.drawWin / maxW * 100)}%"></i>${h.drawWin}%</span>`;
       const fl = h.flow && !h.scratched ? h.flow : null;
@@ -452,6 +548,9 @@
         (h.incident && h.incident.text && h.incident.text !== '無特別報告。' ? `<div class="cond">上仗事件（${esc(h.incident.date.slice(5))}，第${esc(h.incident.place)}名）：${esc(h.incident.text.length > 90 ? h.incident.text.slice(0, 90) + '…' : h.incident.text)}</div>` : '') +
         (tags ? `<div class="tags">${tags}</div>` : '');
       const speed = h.model && h.model.figs ? `<span title="最近三仗速度指數：0 係同路程標準時間，正數快過標準（已扣當日場地快慢）">速度 <span class="num">${h.model.figs.split(',').map(n => (Number(n) > 0 ? '+' : '') + n).join(' / ')}</span></span>` : '';
+      const po = Number(prevOdds[h.no]), no_ = Number(h.odds);
+      if (no_ > 0) nowOdds[h.no] = no_;
+      const flip = !h.scratched && po > 0 && no_ > 0 && po !== no_ ? (no_ < po ? ' chg dn' : ' chg up') : '';
       return `<li class="runner${h.scratched ? ' scr' : ''}${isPick ? ' pick' : ''}${fl && fl.level >= 2 ? ' flow' + fl.level : ''}">
         <div class="cloth num">${esc(h.no)}</div>
         <div class="info">
@@ -463,11 +562,12 @@
         </div>
         ${col2 ? `<div class="col2">${col2}</div>` : ''}
         <div class="odds${h.no === d.fav ? ' fav' : ''}">
-          <div class="tile"><span class="num">${h.scratched ? '退出' : esc(h.odds || '-')}</span><small>獨贏</small></div>
+          <div class="tile${flip}"><span class="num">${h.scratched ? '退出' : esc(h.odds || '-')}</span><small>獨贏</small></div>
           ${was}${h.model && !h.scratched ? `<span class="model">模型 <span class="num">${h.model.pf}</span>%</span>` : ''}${h.pos ? `<span class="res">第${esc(h.pos)}名</span>` : ''}
         </div>
       </li>`;
     }).join('');
+    S.odds[r.race_id] = nowOdds;
     $('view').innerHTML = head + `<div class="rcols">
       <div class="rmain">${flowHtml(d)}<ol class="runners o-runners">${rows}</ol></div>
       <div class="rside">${tipsHtml(d)}${picksHtml(d)}${biasHtml(d)}${jdayHtml(d)}</div>
@@ -498,6 +598,14 @@
     const id = S.raceId, y = window.scrollY;
     try { const d = await call('apiRace', id); if (S.raceId === id) { renderRace(d); window.scrollTo(0, y); } }
     catch (e) { if (b) { b.disabled = false; b.textContent = '再試'; } }
+  }
+
+  // 標籤：「最後落飛機會 N%」用細計量條顯示，其他照舊
+  function tagHtml(t) {
+    const m = /^最後落飛機會 (\d+)%$/.exec(t.t);
+    if (m) { const p = Number(m[1]);
+      return `<span class="tag late${p >= 20 ? ' hi' : ''}" title="開跑前 5 分鐘至開跑時，賠率再跌 10% 或以上嘅機會（按過往落飛紀錄計）">最後落飛 <i style="--p:${Math.min(100, p * 2.5)}%"></i><b>${p}%</b></span>`; }
+    return `<span class="tag ${t.k}">${t.t}</span>`;
   }
 
   function tipsHtml(d) {
@@ -605,7 +713,11 @@
       }).join('')}</tbody></table></div>`;
   }
 
-  function setTab(id) { ['tabRace', 'tabDay', 'tabStats'].forEach(t => t === id ? $(t).setAttribute('aria-current', 'page') : $(t).removeAttribute('aria-current')); }
+  function setTab(id) {
+    const ids = ['tabRace', 'tabDay', 'tabStats'];
+    ids.forEach(t => t === id ? $(t).setAttribute('aria-current', 'page') : $(t).removeAttribute('aria-current'));
+    $('tabs').style.setProperty('--ti', ids.indexOf(id));
+  }
 
   function showRaces() {
     setTab('tabRace');
@@ -616,7 +728,7 @@
   async function showStats() {
     setTab('tabStats'); clearTimeout(S.timer);
     $('meets').style.display = 'none'; $('board').style.display = 'none';
-    $('view').innerHTML = '<div class="loading">讀取統計中…</div>';
+    $('view').innerHTML = skel('讀取統計中…');
     try { S.stats = S.stats || await call('apiStats'); renderStats(); } catch (e) { fail(e); }
   }
 
@@ -626,7 +738,7 @@
     if (!S.meeting) { await init(); setTab('tabDay'); }
     $('meets').style.display = ''; $('board').style.display = 'none';
     renderMeets('pickDay');
-    $('view').innerHTML = '<div class="loading">讀取今日總覽中…</div>';
+    $('view').innerHTML = skel('讀取今日總覽中…');
     try { renderDay(await call('apiDay', S.meeting.id)); } catch (e) { fail(e); }
   }
   function pickDay(id) { S.meeting = S.meetings.find(m => m.id === id); S.raceId = S.meeting.races[0].id; showDay(); }
@@ -714,7 +826,7 @@
           `<div title="${x.draw} 檔：勝率 ${x.win}%，${x.starts} 次"><i class="${x.win === best ? 'top' : ''}" style="height:${Math.max(2, x.win / max * 70)}px"></i><span class="num">${x.draw}</span></div>`).join('')}</div></div>`;
     }).join('');
     $('view').innerHTML = `<div class="page">
-      <div class="seg" role="group" aria-label="期間">
+      <div class="seg" role="group" aria-label="期間" style="--si:${recent ? 0 : 1}">
         <button aria-pressed="${recent}" onclick="setPeriod('近30日')">近 30 日</button>
         <button aria-pressed="${!recent}" onclick="setPeriod('全部')">全部紀錄</button>
       </div>
