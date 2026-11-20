@@ -423,6 +423,18 @@
   .ln .trail { position: absolute; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px; background: linear-gradient(90deg, transparent, var(--signal)); }
   .ln .trail.back { background: linear-gradient(270deg, transparent, var(--mint)); }
   .ln .ghost { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #9DB4FF; transition: left .9s var(--out); }
+  .ln .dia { position: absolute; top: 50%; width: 11px; height: 11px; margin: -6px 0 0 -6px; transform: rotate(45deg); border: 2px solid #C4A5FF; background: rgba(196, 165, 255, .18); transition: left .9s var(--out); }
+  .tw-leg .lv { width: 8px; height: 8px; transform: rotate(45deg); border: 2px solid #C4A5FF; margin-right: 6px; }
+  .ai { margin: 12px 14px 0; border-radius: 14px; background: var(--board-2); color: rgba(255, 255, 255, .88); padding: 12px 14px; }
+  .ai-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ai-h b { color: #fff; font-size: 15px; }
+  .ai-h small { color: rgba(255, 255, 255, .55); font-size: 11px; margin-left: 6px; }
+  .ai-btn { border: 1px solid #C4A5FF; color: #E6DAFF; background: transparent; border-radius: 999px; padding: 5px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+  .ai-btn:disabled { opacity: .5; cursor: wait; }
+  .ai-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .ai-t { margin-top: 8px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+  .ai-t:empty { display: none; }
+  .ai-t.err { color: #FFB4A8; }
   .ln .sk { position: absolute; top: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; display: grid; place-items: center; z-index: 2;
     font: 800 13px/1 "Big Shoulders Display", "Barlow Condensed", sans-serif; color: #fff; box-shadow: 0 0 0 2px rgba(0, 0, 0, .25), 0 2px 6px rgba(0, 0, 0, .35); transition: left .9s var(--out); }
   .ln .sk.scr { opacity: .25; }
@@ -635,7 +647,7 @@
       </li>`;
     }).join('');
     S.odds[r.race_id] = nowOdds;
-    $('view').innerHTML = head + alertsHtml(d) + trackHtml(d) + `<div class="rcols">
+    $('view').innerHTML = head + alertsHtml(d) + trackHtml(d) + aiHtml(d) + `<div class="rcols">
       <div class="rmain">${flowHtml(d)}<ol class="runners o-runners">${rows}</ol></div>
       <div class="rside">${tipsHtml(d)}${picksHtml(d)}${biasHtml(d)}${jdayHtml(d)}</div>
     </div>`;
@@ -654,6 +666,7 @@
     const ps = live.map(h => P(Number(h.odds)));
     const lo = Math.log(Math.max(.006, Math.min(...ps)) * .8), hi = Math.log(Math.max(...ps) * 1.12);
     const X = p => Math.round((4 + 86 * (Math.log(Math.max(p, Math.exp(lo))) - lo) / (hi - lo)) * 10) / 10;
+    const pmSum = live.reduce((a, h) => a + (h.model && Number(h.model.pm) > 0 ? Number(h.model.pm) : 0), 0);
     S.trackX = S.trackX || {};
     const prev = S.trackX[d.race.race_id] || {}, now = {};
     const lanes = d.runners.map(h => {
@@ -665,21 +678,44 @@
       const bx = f && Number(f.oddsBase) > 0 && Math.abs(f.dropBase) >= .05 ? X(P(Number(f.oddsBase))) : null;
       const trail = bx == null ? '' : bx < x ? `<i class="trail" style="left:${bx}%;width:${x - bx}%"></i>` : `<i class="trail back" style="left:${x}%;width:${bx - x}%"></i>`;
       const pf = h.model && Number(h.model.pl) > 0 ? Math.min(X(Number(h.model.pl) / 100), 94) : null;   // 只用即時賠率重計嘅模型機會；冇就唔畫
+      const pv = pmSum > 0 && h.model && Number(h.model.pm) > 0 ? Math.min(X(Number(h.model.pm) / pmSum), 94) : null;   // 獨立模型（唔睇賠率），每場重新歸一
       const late = (h.tags || []).map(t => /^最後落飛機會 (\d+)%$/.exec(t.t)).find(Boolean);
       const drift = (h.tags || []).some(t => /回飛但模型睇好/.test(t.t));
       const hot = late && Number(late[1]) >= 20;
       const cls = drift ? ' drw' : hot ? ' hot' : '';
       const pin = drift ? `<span class="pin drw${x > 70 ? ' flip' : ''}" data-x="${x}" style="left:${from}%">⚠ 回飛睇好</span>`
         : hot ? `<span class="pin hot${x > 70 ? ' flip' : ''}" data-x="${x}" style="left:${from}%">${late[1]}%</span>` : '';
-      return `<div class="ln">${trail}${pf != null ? `<i class="ghost" style="left:${pf}%"></i>` : ''}
+      return `<div class="ln">${trail}${pf != null ? `<i class="ghost" style="left:${pf}%"></i>` : ''}${pv != null ? `<i class="dia" style="left:${pv}%" title="獨立模型 ${Math.round(Number(h.model.pm) / pmSum * 100)}%"></i>` : ''}
         <button class="sk${cls}" data-x="${x}" style="left:${from}%;background:${col}" onclick="jumpRunner(${h.no})" aria-label="${esc(h.no)}號 ${esc(h.name)}，獨贏 ${esc(h.odds)}${hot ? '，最後落飛機會 ' + late[1] + '%' : ''}${drift ? '，回飛但模型睇好' : ''}">${esc(h.no)}</button>${pin}</div>`;
     }).join('');
     S.trackX[d.race.race_id] = now;
     return `<section class="tw" aria-label="賠率跑道">
       <div class="tw-cap"><span><b>賠率跑道</b>越近終點越熱門，撳馬號跳去嗰匹馬</span>
-        <span class="tw-leg"><span><i class="lm"></i>落飛</span><span><i class="lo"></i>模型（按即時賠率）</span><span><i class="lh"></i>最後落飛 ≥20%</span><span><i class="ld"></i>回飛但模型睇好</span></span></div>
+        <span class="tw-leg"><span><i class="lm"></i>落飛</span><span><i class="lo"></i>模型（按即時賠率）</span><span><i class="lv"></i>獨立模型（唔睇賠率）</span><span><i class="lh"></i>最後落飛 ≥20%</span><span><i class="ld"></i>回飛但模型睇好</span></span></div>
       <div class="trk"><span class="trk-end">熱門</span>${lanes}</div>
       <div class="tw-axis"><span>冷門</span><span>${d.flow && d.flow.baseAt ? '落飛由 ' + esc(d.flow.baseAt) + ' 起計' : ''}</span></div></section>`;
+  }
+  /* AI 解說：撳掣先叫 Gemini（慳額度），伺服器快取 10 分鐘；本機記住同一場上次結果 */
+  S.ai = S.ai || {};
+  function aiHtml(d) {
+    const rid = d.race.race_id, a = S.ai[rid];
+    const meta = a && a.text ? `${esc(a.at)} 生成${a.oddsAt ? '・賠率 ' + esc(a.oddsAt) : ''}` : 'Gemini 根據賠率、模型、落飛同上仗事件寫';
+    return `<section class="ai" aria-label="AI 解說"><div class="ai-h"><span><b>AI 解說</b><small id="aiMeta">${meta}</small></span>
+      <button class="ai-btn" id="aiBtn" onclick="loadAi('${esc(rid)}')">${a && a.text ? '重新分析' : '分析呢場'}</button></div>
+      <div class="ai-t${a && a.err ? ' err' : ''}" id="aiText">${a ? esc(a.text || a.err) : ''}</div></section>`;
+  }
+  async function loadAi(rid) {
+    const b = $('aiBtn'), t = $('aiText');
+    b.disabled = true; b.textContent = '分析緊…'; t.className = 'ai-t'; t.textContent = '';
+    try {
+      const r = await call('apiAiNote', rid);
+      S.ai[rid] = r;
+    } catch (e) { S.ai[rid] = { err: 'AI 解說暫時用唔到：' + (e.message || e) }; }
+    if (S.raceId !== rid || !$('aiBtn')) return;
+    const a = S.ai[rid];
+    t.className = 'ai-t' + (a.err ? ' err' : ''); t.textContent = a.text || a.err;
+    $('aiMeta').textContent = a.text ? a.at + ' 生成' + (a.oddsAt ? '・賠率 ' + a.oddsAt : '') : '';
+    b.disabled = false; b.textContent = a.text ? '重新分析' : '再試';
   }
   // 刷新後：由上次位置滑去新位置
   function moveTrack() {

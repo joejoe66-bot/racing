@@ -1,5 +1,5 @@
 // 賽馬分析 PWA：畫面檔案先用網絡（攞最新版），失敗先用快取
-const CACHE = 'hkr-shell-v5';
+const CACHE = 'hkr-shell-v6';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
